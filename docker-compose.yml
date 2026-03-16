@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docflow-app
+    ports:
+      - "${APP_PORT}:8080"
+    env_file:
+      - .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      APP_PORT: 8080
+      UPLOAD_DIR: ${UPLOAD_DIR}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - uploaded-files:${UPLOAD_DIR}
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: docflow-postgres
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: docflow-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - uploaded-files:${UPLOAD_DIR}:ro
+
+volumes:
+  postgres-data:
+  uploaded-files:
