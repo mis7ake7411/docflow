@@ -41,8 +41,6 @@ services:
     container_name: docflow-redis
     ports:
       - "${REDIS_PORT}:6379"
-    volumes:
-      - uploaded-files:${UPLOAD_DIR}:ro
 
 volumes:
   postgres-data:
