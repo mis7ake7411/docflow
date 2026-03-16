@@ -1,12 +1,27 @@
 <template>
   <AppLayout>
-    <div class="page-card">
-      <h1>Dashboard</h1>
-      <p class="muted">前端主畫面骨架。下一步會接 Folder Tree 與 Document List。</p>
+    <div class="dashboard-grid">
+      <div class="page-card">
+        <FolderTree />
+      </div>
+
+      <div class="page-card">
+        <DocumentTable />
+      </div>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
+import FolderTree from '@/features/folder/components/FolderTree.vue'
+import DocumentTable from '@/features/document/components/DocumentTable.vue'
 </script>
+
+<style scoped>
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+}
+</style>
