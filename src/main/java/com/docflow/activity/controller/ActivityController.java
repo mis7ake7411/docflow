@@ -3,6 +3,9 @@ package com.docflow.activity.controller;
 import com.docflow.activity.dto.ActivityLogResponse;
 import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,10 +16,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/activities")
 @RequiredArgsConstructor
+@Tag(name = "Activity", description = "Audit trail and activity log APIs")
+@SecurityRequirement(name = "bearerAuth")
 public class ActivityController {
 
     private final ActivityLogService activityLogService;
 
+    @Operation(summary = "Get recent activity logs")
     @GetMapping
     public ApiResponse<List<ActivityLogResponse>> getActivities() {
         List<ActivityLogResponse> responses = activityLogService.getRecentActivities().stream()
