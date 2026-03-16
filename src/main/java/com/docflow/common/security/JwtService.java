@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -63,6 +64,7 @@ public class JwtService {
                 .subject(username)
                 .claim("userId", userId)
                 .claim("role", role)
+                .claim("jti", UUID.randomUUID().toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(getSigningKey())
