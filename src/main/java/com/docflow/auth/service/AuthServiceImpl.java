@@ -1,5 +1,6 @@
 package com.docflow.auth.service;
 
+import com.docflow.activity.service.ActivityLogService;
 import com.docflow.auth.dto.*;
 import com.docflow.auth.entity.RefreshToken;
 import com.docflow.auth.repository.RefreshTokenRepository;
@@ -30,6 +31,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final AuthTokenBlacklistService authTokenBlacklistService;
+    private final ActivityLogService activityLogService;
 
     @Override
     @Transactional
@@ -50,6 +52,10 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        activityLogService.log(savedUser.getId(), "USER", savedUser.getId(), "REGISTER", java.util.Map.of(
+                "username", savedUser.getUsername(),
+                "email", savedUser.getEmail()
+        ));
         return buildAuthResponse(savedUser);
     }
 
@@ -63,6 +69,9 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
+        activityLogService.log(user.getId(), "USER", user.getId(), "LOGIN", java.util.Map.of(
+                "username", user.getUsername()
+        ));
         return buildAuthResponse(user);
     }
 
@@ -99,6 +108,14 @@ public class AuthServiceImpl implements AuthService {
         if (request.getAccessToken() != null && !request.getAccessToken().isBlank()) {
             authTokenBlacklistService.blacklist(request.getAccessToken(), jwtService.getAccessTokenExpirationSeconds());
         }
+
+        activityLogService.log(
+                refreshToken.getUser() != null ? refreshToken.getUser().getId() : null,
+                "AUTH",
+                refreshToken.getId(),
+                "LOGOUT",
+                java.util.Map.of("refreshTokenRevoked", true)
+        );
     }
 
     private AuthResponse buildAuthResponse(User user) {

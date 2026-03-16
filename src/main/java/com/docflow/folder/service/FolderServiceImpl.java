@@ -1,5 +1,6 @@
 package com.docflow.folder.service;
 
+import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.security.SecurityUtils;
 import com.docflow.folder.dto.CreateFolderRequest;
@@ -18,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +27,7 @@ public class FolderServiceImpl implements FolderService {
 
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
+    private final ActivityLogService activityLogService;
 
     @Override
     @Transactional
@@ -42,7 +43,12 @@ public class FolderServiceImpl implements FolderService {
                 .deletedFlag(false)
                 .build();
 
-        return toResponse(folderRepository.save(folder));
+        Folder saved = folderRepository.save(folder);
+        activityLogService.log(currentUser.getId(), "FOLDER", saved.getId(), "CREATE", java.util.Map.of(
+                "name", saved.getName(),
+                "parentId", saved.getParent() != null ? saved.getParent().getId() : null
+        ));
+        return toResponse(saved);
     }
 
     @Override
@@ -75,7 +81,13 @@ public class FolderServiceImpl implements FolderService {
         folder.setParent(parent);
         folder.setSortOrder(request.getSortOrder());
 
-        return toResponse(folderRepository.save(folder));
+        Folder saved = folderRepository.save(folder);
+        activityLogService.log(getCurrentUser().getId(), "FOLDER", saved.getId(), "UPDATE", java.util.Map.of(
+                "name", saved.getName(),
+                "parentId", saved.getParent() != null ? saved.getParent().getId() : null,
+                "sortOrder", saved.getSortOrder()
+        ));
+        return toResponse(saved);
     }
 
     @Override
@@ -90,6 +102,9 @@ public class FolderServiceImpl implements FolderService {
 
         folder.setDeletedFlag(true);
         folderRepository.save(folder);
+        activityLogService.log(getCurrentUser().getId(), "FOLDER", folder.getId(), "DELETE", java.util.Map.of(
+                "name", folder.getName()
+        ));
     }
 
     private User getCurrentUser() {

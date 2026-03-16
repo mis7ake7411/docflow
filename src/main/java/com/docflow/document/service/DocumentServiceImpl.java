@@ -1,5 +1,6 @@
 package com.docflow.document.service;
 
+import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.security.SecurityUtils;
 import com.docflow.document.dto.CreateDocumentRequest;
@@ -32,6 +33,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserRepository userRepository;
     private final LocalFileStorageService localFileStorageService;
     private final DocumentCacheService documentCacheService;
+    private final ActivityLogService activityLogService;
 
     @Override
     @Transactional
@@ -49,8 +51,13 @@ public class DocumentServiceImpl implements DocumentService {
                 .deletedFlag(false)
                 .build();
 
-        DocumentResponse response = toResponse(documentRepository.save(document));
+        Document saved = documentRepository.save(document);
+        DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(response.getId());
+        activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "CREATE", java.util.Map.of(
+                "title", saved.getTitle(),
+                "status", saved.getStatus().name()
+        ));
         return response;
     }
 
@@ -66,8 +73,14 @@ public class DocumentServiceImpl implements DocumentService {
         document.setFileSize(storedFile.getFileSize());
         document.setVersion(document.getVersion() + 1);
 
-        DocumentResponse response = toResponse(documentRepository.save(document));
+        Document saved = documentRepository.save(document);
+        DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
+        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPLOAD", java.util.Map.of(
+                "fileName", saved.getFileName(),
+                "storedFileName", saved.getStoredFileName(),
+                "version", saved.getVersion()
+        ));
         return response;
     }
 
@@ -102,8 +115,14 @@ public class DocumentServiceImpl implements DocumentService {
         document.setStatus(parseStatus(request.getStatus()));
         document.setVersion(document.getVersion() + 1);
 
-        DocumentResponse response = toResponse(documentRepository.save(document));
+        Document saved = documentRepository.save(document);
+        DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
+        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPDATE", java.util.Map.of(
+                "title", saved.getTitle(),
+                "status", saved.getStatus().name(),
+                "version", saved.getVersion()
+        ));
         return response;
     }
 
@@ -114,6 +133,9 @@ public class DocumentServiceImpl implements DocumentService {
         document.setDeletedFlag(true);
         documentRepository.save(document);
         documentCacheService.evictDocumentDetail(id);
+        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", document.getId(), "DELETE", java.util.Map.of(
+                "title", document.getTitle()
+        ));
     }
 
     @Override
@@ -123,7 +145,12 @@ public class DocumentServiceImpl implements DocumentService {
         if (response.getStoredFileName() == null || response.getStoredFileName().isBlank()) {
             throw new BadRequestException("Document file has not been uploaded");
         }
-        documentCacheService.recordDocumentView(getCurrentUser().getId(), response);
+        Long currentUserId = getCurrentUser().getId();
+        documentCacheService.recordDocumentView(currentUserId, response);
+        activityLogService.log(currentUserId, "DOCUMENT", response.getId(), "DOWNLOAD", java.util.Map.of(
+                "fileName", response.getFileName(),
+                "version", response.getVersion()
+        ));
         return localFileStorageService.loadAsResource(response.getStoredFileName());
     }
 
