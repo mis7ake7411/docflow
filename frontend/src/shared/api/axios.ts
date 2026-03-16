@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { getAccessTokenFromBridge, logoutFromBridge, refreshAccessTokenFromBridge } from '@/shared/api/auth-bridge'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
