@@ -34,3 +34,7 @@ springdoc:
 docflow:
   storage:
     upload-dir: ${UPLOAD_DIR:./uploads}
+  jwt:
+    secret: ${JWT_SECRET:ZG9jZmxvdy1saXRlLXN1cGVyLXNlY3JldC1rZXktZm9yLWRldi1vbmx5LTEyMzQ1Njc4OTA=}
+    access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:3600}
+    refresh-token-expiration-seconds: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:604800}
