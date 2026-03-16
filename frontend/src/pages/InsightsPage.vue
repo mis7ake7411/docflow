@@ -1,12 +1,30 @@
 <template>
   <AppLayout>
-    <div class="page-card">
-      <h1>Insights</h1>
-      <p class="muted">這裡之後會顯示 hot documents、recent views、activity logs。</p>
+    <div class="insights-grid">
+      <HotDocumentsCard />
+      <RecentViewsCard />
+      <div class="full-width">
+        <ActivityLogTable />
+      </div>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
+import HotDocumentsCard from '@/features/stats/components/HotDocumentsCard.vue'
+import RecentViewsCard from '@/features/stats/components/RecentViewsCard.vue'
+import ActivityLogTable from '@/features/activity/components/ActivityLogTable.vue'
 </script>
+
+<style scoped>
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+</style>

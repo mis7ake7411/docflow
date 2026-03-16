@@ -17,7 +17,27 @@ export interface FolderTreeNode {
   children: FolderTreeNode[]
 }
 
+export interface FolderPayload {
+  name: string
+  parentId: number | null
+  sortOrder: number
+}
+
 export async function getFolderTree(): Promise<FolderTreeNode[]> {
   const response = await apiClient.get<ApiResponse<FolderTreeNode[]>>('/api/folders/tree')
   return response.data.data
+}
+
+export async function createFolder(payload: FolderPayload): Promise<FolderTreeNode> {
+  const response = await apiClient.post<ApiResponse<FolderTreeNode>>('/api/folders', payload)
+  return response.data.data
+}
+
+export async function updateFolder(id: number, payload: FolderPayload): Promise<FolderTreeNode> {
+  const response = await apiClient.put<ApiResponse<FolderTreeNode>>(`/api/folders/${id}`, payload)
+  return response.data.data
+}
+
+export async function deleteFolder(id: number): Promise<void> {
+  await apiClient.delete(`/api/folders/${id}`)
 }
