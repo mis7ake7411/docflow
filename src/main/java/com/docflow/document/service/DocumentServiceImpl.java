@@ -10,6 +10,7 @@ import com.docflow.document.entity.DocumentStatus;
 import com.docflow.document.repository.DocumentRepository;
 import com.docflow.document.storage.LocalFileStorageService;
 import com.docflow.document.storage.StoredFileResult;
+import com.docflow.document.service.DocumentCacheService;
 import com.docflow.folder.entity.Folder;
 import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
@@ -30,6 +31,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final LocalFileStorageService localFileStorageService;
+    private final DocumentCacheService documentCacheService;
 
     @Override
     @Transactional
@@ -47,7 +49,9 @@ public class DocumentServiceImpl implements DocumentService {
                 .deletedFlag(false)
                 .build();
 
-        return toResponse(documentRepository.save(document));
+        DocumentResponse response = toResponse(documentRepository.save(document));
+        documentCacheService.evictDocumentDetail(response.getId());
+        return response;
     }
 
     @Override
@@ -62,7 +66,9 @@ public class DocumentServiceImpl implements DocumentService {
         document.setFileSize(storedFile.getFileSize());
         document.setVersion(document.getVersion() + 1);
 
-        return toResponse(documentRepository.save(document));
+        DocumentResponse response = toResponse(documentRepository.save(document));
+        documentCacheService.evictDocumentDetail(id);
+        return response;
     }
 
     @Override
@@ -76,7 +82,12 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional(readOnly = true)
     public DocumentResponse getById(Long id) {
-        return toResponse(getActiveDocument(id));
+        return documentCacheService.getDocumentDetail(id)
+                .orElseGet(() -> {
+                    DocumentResponse response = toResponse(getActiveDocument(id));
+                    documentCacheService.cacheDocumentDetail(id, response);
+                    return response;
+                });
     }
 
     @Override
@@ -91,7 +102,9 @@ public class DocumentServiceImpl implements DocumentService {
         document.setStatus(parseStatus(request.getStatus()));
         document.setVersion(document.getVersion() + 1);
 
-        return toResponse(documentRepository.save(document));
+        DocumentResponse response = toResponse(documentRepository.save(document));
+        documentCacheService.evictDocumentDetail(id);
+        return response;
     }
 
     @Override
@@ -100,16 +113,18 @@ public class DocumentServiceImpl implements DocumentService {
         Document document = getActiveDocument(id);
         document.setDeletedFlag(true);
         documentRepository.save(document);
+        documentCacheService.evictDocumentDetail(id);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Resource download(Long id) {
-        Document document = getActiveDocument(id);
-        if (document.getStoredFileName() == null || document.getStoredFileName().isBlank()) {
+        DocumentResponse response = getById(id);
+        if (response.getStoredFileName() == null || response.getStoredFileName().isBlank()) {
             throw new BadRequestException("Document file has not been uploaded");
         }
-        return localFileStorageService.loadAsResource(document.getStoredFileName());
+        documentCacheService.recordDocumentView(getCurrentUser().getId(), response);
+        return localFileStorageService.loadAsResource(response.getStoredFileName());
     }
 
     private Document getActiveDocument(Long id) {

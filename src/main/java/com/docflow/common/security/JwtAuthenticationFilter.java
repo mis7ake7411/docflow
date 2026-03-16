@@ -1,5 +1,6 @@
 package com.docflow.common.security;
 
+import com.docflow.auth.service.AuthTokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final DocflowUserDetailsService userDetailsService;
+    private final AuthTokenBlacklistService authTokenBlacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,6 +34,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+        if (authTokenBlacklistService.isBlacklisted(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String username;
         try {
             username = jwtService.extractUsername(token);

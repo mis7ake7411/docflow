@@ -6,6 +6,7 @@ import com.docflow.auth.repository.RefreshTokenRepository;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.exception.UnauthorizedException;
 import com.docflow.common.security.JwtService;
+import com.docflow.auth.service.AuthTokenBlacklistService;
 import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
@@ -28,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final AuthTokenBlacklistService authTokenBlacklistService;
 
     @Override
     @Transactional
@@ -93,6 +95,10 @@ public class AuthServiceImpl implements AuthService {
 
         refreshToken.setRevokedFlag(true);
         refreshTokenRepository.save(refreshToken);
+
+        if (request.getAccessToken() != null && !request.getAccessToken().isBlank()) {
+            authTokenBlacklistService.blacklist(request.getAccessToken(), jwtService.getAccessTokenExpirationSeconds());
+        }
     }
 
     private AuthResponse buildAuthResponse(User user) {
