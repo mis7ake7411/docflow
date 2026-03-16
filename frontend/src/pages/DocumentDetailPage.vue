@@ -1,8 +1,12 @@
 <template>
-  <div class="page-shell">
+  <AppLayout>
     <div class="page-card">
       <h1>Document Detail</h1>
       <p class="muted">文件詳情頁骨架。下一步接 document detail / upload / download。</p>
     </div>
-  </div>
+  </AppLayout>
 </template>
+
+<script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue'
+</script>

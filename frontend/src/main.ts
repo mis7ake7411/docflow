@@ -5,6 +5,7 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
+import { setupRouterGuards } from './shared/router-guards'
 import './styles.css'
 
 const app = createApp(App)
@@ -13,6 +14,7 @@ const queryClient = new QueryClient()
 
 app.use(pinia)
 app.use(router)
+setupRouterGuards(router)
 app.use(ElementPlus)
 app.use(VueQueryPlugin, { queryClient })
 

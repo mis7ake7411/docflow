@@ -1,12 +1,6 @@
 import { defineStore } from 'pinia'
-
-interface UserSummary {
-  id: number
-  username: string
-  email: string
-  role: string
-  status: string
-}
+import { login, logout, refreshToken, type LoginRequest } from '@/features/auth/api'
+import type { UserSummary } from '@/shared/types/auth'
 
 interface AuthState {
   accessToken: string | null
@@ -45,6 +39,42 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem(ACCESS_TOKEN_KEY)
       localStorage.removeItem(REFRESH_TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
+    },
+    async login(payload: LoginRequest) {
+      const response = await login(payload)
+      this.setAuth({
+        accessToken: response.tokens.accessToken,
+        refreshToken: response.tokens.refreshToken,
+        user: response.user,
+      })
+    },
+    async refreshAccessToken(): Promise<string | null> {
+      if (!this.refreshToken) {
+        this.clearAuth()
+        return null
+      }
+
+      try {
+        const tokens = await refreshToken({ refreshToken: this.refreshToken })
+        this.accessToken = tokens.accessToken
+        localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+        return tokens.accessToken
+      } catch (error) {
+        this.clearAuth()
+        return null
+      }
+    },
+    async logout() {
+      try {
+        if (this.refreshToken) {
+          await logout({
+            refreshToken: this.refreshToken,
+            accessToken: this.accessToken || undefined,
+          })
+        }
+      } finally {
+        this.clearAuth()
+      }
     },
   },
 })
