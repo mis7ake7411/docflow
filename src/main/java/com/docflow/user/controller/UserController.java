@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 提供目前登入使用者相關 API。
+ */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -23,6 +26,11 @@ public class UserController {
 
     private final StatsService statsService;
 
+    /**
+     * 取得目前登入使用者最近瀏覽的文件列表。
+     *
+     * @return 最近瀏覽文件資料
+     */
     @Operation(summary = "Get current user's recent viewed documents")
     @GetMapping("/me/recent-views")
     public ApiResponse<List<RecentViewItem>> getMyRecentViews() {

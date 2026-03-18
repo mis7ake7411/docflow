@@ -19,6 +19,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+/**
+ * 提供文件管理與下載 API。
+ */
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
@@ -28,36 +31,73 @@ public class DocumentController {
 
     private final DocumentService documentService;
 
+    /**
+     * 建立文件基本資料。
+     *
+     * @param request 建立資料
+     * @return 建立後的文件資訊
+     */
     @Operation(summary = "Create document metadata")
     @PostMapping
     public ApiResponse<DocumentResponse> create(@Valid @RequestBody CreateDocumentRequest request) {
         return ApiResponse.success(documentService.create(request), "Document created successfully");
     }
 
+    /**
+     * 上傳文件檔案內容。
+     *
+     * @param id 文件編號
+     * @param file 上傳檔案
+     * @return 更新後的文件資訊
+     */
     @Operation(summary = "Upload document file")
     @PostMapping("/{id}/upload")
     public ApiResponse<DocumentResponse> upload(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         return ApiResponse.success(documentService.upload(id, file), "Document uploaded successfully");
     }
 
+    /**
+     * 取得所有文件列表。
+     *
+     * @return 文件列表
+     */
     @Operation(summary = "List documents")
     @GetMapping
     public ApiResponse<List<DocumentResponse>> getAll() {
         return ApiResponse.success(documentService.getAll());
     }
 
+    /**
+     * 取得指定文件明細。
+     *
+     * @param id 文件編號
+     * @return 文件資訊
+     */
     @Operation(summary = "Get document detail")
     @GetMapping("/{id}")
     public ApiResponse<DocumentResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(documentService.getById(id));
     }
 
+    /**
+     * 更新文件基本資料。
+     *
+     * @param id 文件編號
+     * @param request 更新資料
+     * @return 更新後的文件資訊
+     */
     @Operation(summary = "Update document metadata")
     @PutMapping("/{id}")
     public ApiResponse<DocumentResponse> update(@PathVariable Long id, @Valid @RequestBody UpdateDocumentRequest request) {
         return ApiResponse.success(documentService.update(id, request), "Document updated successfully");
     }
 
+    /**
+     * 刪除指定文件。
+     *
+     * @param id 文件編號
+     * @return 成功回應
+     */
     @Operation(summary = "Delete document")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -65,6 +105,12 @@ public class DocumentController {
         return ApiResponse.success(null, "Document deleted successfully");
     }
 
+    /**
+     * 下載指定文件檔案。
+     *
+     * @param id 文件編號
+     * @return 檔案下載回應
+     */
     @Operation(summary = "Download document file")
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> download(@PathVariable Long id) {

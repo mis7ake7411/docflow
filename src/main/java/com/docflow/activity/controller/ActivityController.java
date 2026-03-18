@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 提供活動紀錄查詢 API。
+ */
 @RestController
 @RequestMapping("/api/activities")
 @RequiredArgsConstructor
@@ -22,6 +25,11 @@ public class ActivityController {
 
     private final ActivityLogService activityLogService;
 
+    /**
+     * 取得最近的活動紀錄列表。
+     *
+     * @return 活動紀錄回應
+     */
     @Operation(summary = "Get recent activity logs")
     @GetMapping
     public ApiResponse<List<ActivityLogResponse>> getActivities() {

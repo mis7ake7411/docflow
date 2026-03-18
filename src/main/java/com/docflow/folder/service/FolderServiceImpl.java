@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * {@link FolderService} 的預設實作，負責資料夾維護與樹狀結構組裝。
+ */
 @Service
 @RequiredArgsConstructor
 public class FolderServiceImpl implements FolderService {
@@ -29,6 +32,12 @@ public class FolderServiceImpl implements FolderService {
     private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
 
+    /**
+     * 建立資料夾並記錄活動。
+     *
+     * @param request 建立資料
+     * @return 建立後的資料夾資訊
+     */
     @Override
     @Transactional
     public FolderResponse create(CreateFolderRequest request) {
@@ -51,6 +60,11 @@ public class FolderServiceImpl implements FolderService {
         return toResponse(saved);
     }
 
+    /**
+     * 取得未刪除資料夾的樹狀結構。
+     *
+     * @return 根節點起始的資料夾樹
+     */
     @Override
     @Transactional(readOnly = true)
     public List<FolderTreeResponse> getTree() {
@@ -66,6 +80,13 @@ public class FolderServiceImpl implements FolderService {
                 .toList();
     }
 
+    /**
+     * 更新指定資料夾並記錄活動。
+     *
+     * @param id 資料夾編號
+     * @param request 更新資料
+     * @return 更新後的資料夾資訊
+     */
     @Override
     @Transactional
     public FolderResponse update(Long id, UpdateFolderRequest request) {
@@ -90,6 +111,11 @@ public class FolderServiceImpl implements FolderService {
         return toResponse(saved);
     }
 
+    /**
+     * 軟刪除指定資料夾；若仍有未刪除子資料夾則拒絕刪除。
+     *
+     * @param id 資料夾編號
+     */
     @Override
     @Transactional
     public void delete(Long id) {
@@ -107,12 +133,23 @@ public class FolderServiceImpl implements FolderService {
         ));
     }
 
+    /**
+     * 取得目前登入使用者。
+     *
+     * @return 目前登入使用者
+     */
     private User getCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("Current user not found"));
     }
 
+    /**
+     * 解析父資料夾；未提供父節點時回傳 {@code null}。
+     *
+     * @param parentId 父資料夾編號
+     * @return 父資料夾實體或 {@code null}
+     */
     private Folder resolveParent(Long parentId) {
         if (parentId == null) {
             return null;
@@ -121,6 +158,12 @@ public class FolderServiceImpl implements FolderService {
                 .orElseThrow(() -> new BadRequestException("Parent folder not found"));
     }
 
+    /**
+     * 將資料夾實體轉為回應物件。
+     *
+     * @param folder 資料夾實體
+     * @return 資料夾回應資料
+     */
     private FolderResponse toResponse(Folder folder) {
         return FolderResponse.builder()
                 .id(folder.getId())
@@ -133,6 +176,13 @@ public class FolderServiceImpl implements FolderService {
                 .build();
     }
 
+    /**
+     * 依父子關係遞迴組裝樹狀節點。
+     *
+     * @param folder 目前節點
+     * @param childrenMap 依父資料夾編號分組的子節點映射
+     * @return 樹狀節點資料
+     */
     private FolderTreeResponse toTreeResponse(Folder folder, Map<Long, List<Folder>> childrenMap) {
         List<Folder> children = childrenMap.getOrDefault(folder.getId(), new ArrayList<>());
         children = children.stream()

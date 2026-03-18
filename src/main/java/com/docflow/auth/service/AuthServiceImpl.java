@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+/**
+ * {@link AuthService} 的預設實作，負責使用者註冊、登入與權杖生命週期管理。
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -33,6 +36,12 @@ public class AuthServiceImpl implements AuthService {
     private final AuthTokenBlacklistService authTokenBlacklistService;
     private final ActivityLogService activityLogService;
 
+    /**
+     * 註冊新使用者並建立初始登入權杖。
+     *
+     * @param request 註冊資料
+     * @return 使用者資訊與權杖
+     */
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -59,6 +68,12 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(savedUser);
     }
 
+    /**
+     * 驗證帳號密碼並建立新的登入權杖。
+     *
+     * @param request 登入資料
+     * @return 使用者資訊與權杖
+     */
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -75,6 +90,12 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user);
     }
 
+    /**
+     * 驗證 refresh token 後換發新的 access token。
+     *
+     * @param request refresh token 資料
+     * @return 新的權杖資訊
+     */
     @Override
     @Transactional
     public AuthTokenResponse refresh(RefreshRequest request) {
@@ -96,6 +117,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * 註銷 refresh token，並視情況將 access token 加入黑名單。
+     *
+     * @param request 登出資料
+     */
     @Override
     @Transactional
     public void logout(LogoutRequest request) {
@@ -118,6 +144,12 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
+    /**
+     * 建立包含使用者摘要與新權杖的登入回應，並持久化 refresh token。
+     *
+     * @param user 使用者實體
+     * @return 登入回應資料
+     */
     private AuthResponse buildAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String refreshTokenValue = jwtService.generateRefreshToken(user.getId(), user.getUsername(), user.getRole().name());

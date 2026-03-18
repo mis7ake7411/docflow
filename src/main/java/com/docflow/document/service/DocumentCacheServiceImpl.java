@@ -15,6 +15,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * {@link DocumentCacheService} 的 Redis 實作，負責文件快取、統計與分散式鎖。
+ */
 @Service
 @RequiredArgsConstructor
 public class DocumentCacheServiceImpl implements DocumentCacheService {
@@ -26,6 +29,12 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    /**
+     * 取得文件明細快取。
+     *
+     * @param documentId 文件編號
+     * @return 文件明細快取資料
+     */
     @Override
     public Optional<DocumentResponse> getDocumentDetail(Long documentId) {
         Object value = redisTemplate.opsForValue().get(RedisKeys.documentDetail(documentId));
@@ -35,16 +44,33 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
         return Optional.empty();
     }
 
+    /**
+     * 寫入文件明細快取。
+     *
+     * @param documentId 文件編號
+     * @param response 文件明細資料
+     */
     @Override
     public void cacheDocumentDetail(Long documentId, DocumentResponse response) {
         redisTemplate.opsForValue().set(RedisKeys.documentDetail(documentId), response, DOCUMENT_DETAIL_TTL);
     }
 
+    /**
+     * 清除文件明細快取。
+     *
+     * @param documentId 文件編號
+     */
     @Override
     public void evictDocumentDetail(Long documentId) {
         redisTemplate.delete(RedisKeys.documentDetail(documentId));
     }
 
+    /**
+     * 記錄使用者最近瀏覽文件，並累計熱門文件分數。
+     *
+     * @param userId 使用者編號
+     * @param response 文件資料
+     */
     @Override
     public void recordDocumentView(Long userId, DocumentResponse response) {
         long now = Instant.now().toEpochMilli();
@@ -57,6 +83,12 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
         redisTemplate.opsForZSet().incrementScore(hotDocumentsKey, String.valueOf(response.getId()), 1.0d);
     }
 
+    /**
+     * 取得使用者最近瀏覽的文件列表。
+     *
+     * @param userId 使用者編號
+     * @return 最近瀏覽文件資料
+     */
     @Override
     public List<RecentViewItem> getRecentViews(Long userId) {
         String key = RedisKeys.recentViews(userId);
@@ -81,6 +113,11 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
         return results;
     }
 
+    /**
+     * 取得熱門文件列表。
+     *
+     * @return 熱門文件資料
+     */
     @Override
     public List<HotDocumentItem> getHotDocuments() {
         Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object>> tuples =
@@ -104,16 +141,34 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
         return results;
     }
 
+    /**
+     * 將 access token 加入黑名單。
+     *
+     * @param token access token
+     * @param ttlSeconds 黑名單保留秒數
+     */
     @Override
     public void blacklistAccessToken(String token, long ttlSeconds) {
         redisTemplate.opsForValue().set(RedisKeys.authBlacklist(token), Boolean.TRUE, Duration.ofSeconds(ttlSeconds));
     }
 
+    /**
+     * 判斷 access token 是否已在黑名單中。
+     *
+     * @param token access token
+     * @return 若已在黑名單中則回傳 {@code true}
+     */
     @Override
     public boolean isAccessTokenBlacklisted(String token) {
         return Boolean.TRUE.equals(redisTemplate.opsForValue().get(RedisKeys.authBlacklist(token)));
     }
 
+    /**
+     * 嘗試取得文件更新鎖。
+     *
+     * @param documentId 文件編號
+     * @return 若成功取得鎖則回傳 {@code true}
+     */
     @Override
     public boolean acquireDocumentUpdateLock(Long documentId) {
         Boolean result = redisTemplate.opsForValue().setIfAbsent(
@@ -124,11 +179,22 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
         return Boolean.TRUE.equals(result);
     }
 
+    /**
+     * 釋放文件更新鎖。
+     *
+     * @param documentId 文件編號
+     */
     @Override
     public void releaseDocumentUpdateLock(Long documentId) {
         redisTemplate.delete(RedisKeys.documentUpdateLock(documentId));
     }
 
+    /**
+     * 取得 sorted set 目前元素數量；若 key 不存在則視為 0。
+     *
+     * @param key Redis key
+     * @return 元素數量
+     */
     private long sizeOfZSet(String key) {
         Long size = redisTemplate.opsForZSet().zCard(key);
         return size == null ? 0 : size;

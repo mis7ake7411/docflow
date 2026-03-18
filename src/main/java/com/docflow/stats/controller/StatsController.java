@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 提供統計資料查詢 API。
+ */
 @RestController
 @RequestMapping("/api/stats")
 @RequiredArgsConstructor
@@ -22,6 +25,11 @@ public class StatsController {
 
     private final StatsService statsService;
 
+    /**
+     * 取得熱門文件列表。
+     *
+     * @return 熱門文件資料
+     */
     @Operation(summary = "Get hot documents")
     @GetMapping("/hot-documents")
     public ApiResponse<List<HotDocumentItem>> getHotDocuments() {

@@ -21,6 +21,15 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 新增一筆活動紀錄，並在提供使用者編號時關聯對應使用者。
+     *
+     * @param userId 執行動作的使用者編號，可為 {@code null}
+     * @param targetType 紀錄目標類型
+     * @param targetId 紀錄目標編號
+     * @param action 執行的動作名稱
+     * @param detail 額外明細資料，會序列化為 JSON 儲存
+     */
     @Override
     @Transactional
     public void log(Long userId, String targetType, Long targetId, String action, Map<String, Object> detail) {
@@ -40,12 +49,24 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         activityLogRepository.save(activityLog);
     }
 
+    /**
+     * 取得最新的活動紀錄列表。
+     *
+     * @return 依建立時間由新到舊排序的最新 100 筆活動紀錄
+     */
     @Override
     @Transactional(readOnly = true)
     public List<ActivityLog> getRecentActivities() {
         return activityLogRepository.findTop100ByOrderByCreatedAtDesc();
     }
 
+    /**
+     * 將活動明細資料序列化為 JSON 字串。
+     *
+     * @param detail 活動明細資料
+     * @return 序列化後的 JSON 字串；若明細為空則回傳 {@code null}
+     * @throws IllegalStateException 當明細資料無法序列化時拋出
+     */
     private String toJson(Map<String, Object> detail) {
         if (detail == null || detail.isEmpty()) {
             return null;

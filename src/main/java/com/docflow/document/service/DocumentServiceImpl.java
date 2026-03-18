@@ -24,6 +24,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+/**
+ * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
+ */
 @Service
 @RequiredArgsConstructor
 public class DocumentServiceImpl implements DocumentService {
@@ -35,6 +38,12 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentCacheService documentCacheService;
     private final ActivityLogService activityLogService;
 
+    /**
+     * 建立文件基本資料並清除相關快取。
+     *
+     * @param request 建立資料
+     * @return 建立後的文件資訊
+     */
     @Override
     @Transactional
     public DocumentResponse create(CreateDocumentRequest request) {
@@ -61,6 +70,13 @@ public class DocumentServiceImpl implements DocumentService {
         return response;
     }
 
+    /**
+     * 上傳文件內容、更新版本並清除明細快取。
+     *
+     * @param id 文件編號
+     * @param file 上傳檔案
+     * @return 更新後的文件資訊
+     */
     @Override
     @Transactional
     public DocumentResponse upload(Long id, MultipartFile file) {
@@ -84,6 +100,11 @@ public class DocumentServiceImpl implements DocumentService {
         return response;
     }
 
+    /**
+     * 取得所有未刪除文件。
+     *
+     * @return 文件列表
+     */
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getAll() {
@@ -92,6 +113,12 @@ public class DocumentServiceImpl implements DocumentService {
                 .toList();
     }
 
+    /**
+     * 先從快取取得文件明細；快取未命中時改由資料庫查詢並回寫快取。
+     *
+     * @param id 文件編號
+     * @return 文件資訊
+     */
     @Override
     @Transactional(readOnly = true)
     public DocumentResponse getById(Long id) {
@@ -103,6 +130,13 @@ public class DocumentServiceImpl implements DocumentService {
                 });
     }
 
+    /**
+     * 更新文件基本資料、提升版本並清除明細快取。
+     *
+     * @param id 文件編號
+     * @param request 更新資料
+     * @return 更新後的文件資訊
+     */
     @Override
     @Transactional
     public DocumentResponse update(Long id, UpdateDocumentRequest request) {
@@ -126,6 +160,11 @@ public class DocumentServiceImpl implements DocumentService {
         return response;
     }
 
+    /**
+     * 軟刪除指定文件並清除明細快取。
+     *
+     * @param id 文件編號
+     */
     @Override
     @Transactional
     public void delete(Long id) {
@@ -138,6 +177,12 @@ public class DocumentServiceImpl implements DocumentService {
         ));
     }
 
+    /**
+     * 下載文件內容，並同步記錄瀏覽與活動紀錄。
+     *
+     * @param id 文件編號
+     * @return 可供下載的檔案資源
+     */
     @Override
     @Transactional(readOnly = true)
     public Resource download(Long id) {
@@ -154,17 +199,34 @@ public class DocumentServiceImpl implements DocumentService {
         return localFileStorageService.loadAsResource(response.getStoredFileName());
     }
 
+    /**
+     * 取得未被刪除的文件，找不到時拋出例外。
+     *
+     * @param id 文件編號
+     * @return 文件實體
+     */
     private Document getActiveDocument(Long id) {
         return documentRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Document not found"));
     }
 
+    /**
+     * 取得目前登入使用者。
+     *
+     * @return 目前登入使用者
+     */
     private User getCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("Current user not found"));
     }
 
+    /**
+     * 解析文件所屬資料夾；未提供資料夾時回傳 {@code null}。
+     *
+     * @param folderId 資料夾編號
+     * @return 資料夾實體或 {@code null}
+     */
     private Folder resolveFolder(Long folderId) {
         if (folderId == null) {
             return null;
@@ -173,6 +235,12 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
     }
 
+    /**
+     * 將字串狀態轉為文件狀態列舉。
+     *
+     * @param status 文件狀態字串
+     * @return 文件狀態列舉
+     */
     private DocumentStatus parseStatus(String status) {
         try {
             return DocumentStatus.valueOf(status.toUpperCase());
@@ -181,6 +249,12 @@ public class DocumentServiceImpl implements DocumentService {
         }
     }
 
+    /**
+     * 將文件實體轉為回應物件。
+     *
+     * @param document 文件實體
+     * @return 文件回應資料
+     */
     private DocumentResponse toResponse(Document document) {
         return DocumentResponse.builder()
                 .id(document.getId())
