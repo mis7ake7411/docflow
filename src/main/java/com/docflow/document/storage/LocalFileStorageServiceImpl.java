@@ -1,6 +1,7 @@
 package com.docflow.document.storage;
 
 import com.docflow.common.exception.BadRequestException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -17,6 +18,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class LocalFileStorageServiceImpl implements LocalFileStorageService {
 
     private final Path uploadRoot;
@@ -25,6 +27,7 @@ public class LocalFileStorageServiceImpl implements LocalFileStorageService {
         this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.uploadRoot);
+            log.info("File storage initialized at path={}", this.uploadRoot);
         } catch (IOException ex) {
             throw new IllegalStateException("Could not initialize upload directory", ex);
         }
@@ -33,6 +36,7 @@ public class LocalFileStorageServiceImpl implements LocalFileStorageService {
     @Override
     public StoredFileResult store(MultipartFile multipartFile) {
         if (multipartFile == null || multipartFile.isEmpty()) {
+            log.warn("File store rejected because upload is empty");
             throw new BadRequestException("Upload file is required");
         }
 
@@ -41,8 +45,10 @@ public class LocalFileStorageServiceImpl implements LocalFileStorageService {
         Path target = uploadRoot.resolve(storedFileName).normalize();
 
         try {
+            log.info("Storing file: originalFilename={}, targetPath={}", originalFilename, target);
             Files.copy(multipartFile.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
+            log.error("Failed to store file: originalFilename={}, targetPath={}", originalFilename, target, ex);
             throw new IllegalStateException("Failed to store file", ex);
         }
 
@@ -58,12 +64,15 @@ public class LocalFileStorageServiceImpl implements LocalFileStorageService {
     public Resource loadAsResource(String storedFileName) {
         try {
             Path filePath = uploadRoot.resolve(storedFileName).normalize();
+            log.debug("Loading stored file as resource: storedFileName={}, path={}", storedFileName, filePath);
             Resource resource = new UrlResource(filePath.toUri());
             if (!resource.exists() || !resource.isReadable()) {
+                log.warn("Stored file not found or unreadable: storedFileName={}, path={}", storedFileName, filePath);
                 throw new BadRequestException("Stored file not found");
             }
             return resource;
         } catch (MalformedURLException ex) {
+            log.error("Failed to load file resource: storedFileName={}", storedFileName, ex);
             throw new IllegalStateException("Failed to load file resource", ex);
         }
     }

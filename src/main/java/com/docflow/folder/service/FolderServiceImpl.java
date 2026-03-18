@@ -12,6 +12,7 @@ import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  * {@link FolderService} 的預設實作，負責資料夾維護與樹狀結構組裝。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FolderServiceImpl implements FolderService {
 
@@ -42,6 +44,8 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional
     public FolderResponse create(CreateFolderRequest request) {
+        log.info("Creating folder: name={}, parentId={}, sortOrder={}",
+                request.getName(), request.getParentId(), request.getSortOrder());
         User currentUser = getCurrentUser();
         Folder parent = resolveParent(request.getParentId());
 
@@ -54,6 +58,7 @@ public class FolderServiceImpl implements FolderService {
                 .build();
 
         Folder saved = folderRepository.save(folder);
+        log.info("Folder created successfully: folderId={}, createdBy={}", saved.getId(), currentUser.getId());
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("name", saved.getName());
         detail.put("parentId", saved.getParent() != null ? saved.getParent().getId() : null);
@@ -69,6 +74,7 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional(readOnly = true)
     public List<FolderTreeResponse> getTree() {
+        log.debug("Loading folder tree");
         List<Folder> folders = folderRepository.findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
         Map<Long, List<Folder>> childrenMap = folders.stream()
                 .filter(folder -> folder.getParent() != null)
@@ -91,6 +97,8 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional
     public FolderResponse update(Long id, UpdateFolderRequest request) {
+        log.info("Updating folder: folderId={}, name={}, parentId={}, sortOrder={}",
+                id, request.getName(), request.getParentId(), request.getSortOrder());
         Folder folder = folderRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
 
@@ -104,6 +112,7 @@ public class FolderServiceImpl implements FolderService {
         folder.setSortOrder(request.getSortOrder());
 
         Folder saved = folderRepository.save(folder);
+        log.info("Folder updated successfully: folderId={}", saved.getId());
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("name", saved.getName());
         detail.put("parentId", saved.getParent() != null ? saved.getParent().getId() : null);
@@ -120,15 +129,18 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional
     public void delete(Long id) {
+        log.info("Deleting folder: folderId={}", id);
         Folder folder = folderRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
 
         if (folderRepository.existsByParentIdAndDeletedFlagFalse(id)) {
+            log.warn("Folder deletion rejected due to active children: folderId={}", id);
             throw new BadRequestException("Cannot delete folder with active child folders");
         }
 
         folder.setDeletedFlag(true);
         folderRepository.save(folder);
+        log.info("Folder soft-deleted successfully: folderId={}", folder.getId());
         activityLogService.log(getCurrentUser().getId(), "FOLDER", folder.getId(), "DELETE", java.util.Map.of(
                 "name", folder.getName()
         ));
@@ -141,6 +153,7 @@ public class FolderServiceImpl implements FolderService {
      */
     private User getCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
+        log.debug("Resolving current user for folder operation: userId={}", userId);
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("Current user not found"));
     }
@@ -155,6 +168,7 @@ public class FolderServiceImpl implements FolderService {
         if (parentId == null) {
             return null;
         }
+        log.debug("Resolving parent folder: parentId={}", parentId);
         return folderRepository.findByIdAndDeletedFlagFalse(parentId)
                 .orElseThrow(() -> new BadRequestException("Parent folder not found"));
     }

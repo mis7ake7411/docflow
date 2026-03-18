@@ -1,32 +1,42 @@
 package com.docflow.filter;
 
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.annotation.WebFilter;
-import java.io.IOException;
-import java.util.UUID;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
 
 @Component
-@WebFilter("/*")
-public class MDCTraceFilter implements Filter {
-  private static final String TRACE_ID = "traceId";
+public class MDCTraceFilter extends OncePerRequestFilter {
 
-  @Override
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-      throws IOException, ServletException {
+    private static final String TRACE_ID = "traceId";
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
-    String traceId = UUID.randomUUID().toString();
-    MDC.put(TRACE_ID, traceId);
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String traceId = resolveTraceId(request);
+        MDC.put(TRACE_ID, traceId);
+        response.setHeader(TRACE_ID_HEADER, traceId);
 
-    try {
-      chain.doFilter(request, response);
-    } finally {
-      MDC.remove(TRACE_ID); // 避免 ThreadLocal 資料外洩
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(TRACE_ID); // 避免 ThreadLocal 資料外洩
+        }
     }
-  }
+
+    private String resolveTraceId(HttpServletRequest request) {
+        String incomingTraceId = request.getHeader(TRACE_ID_HEADER);
+        if (incomingTraceId == null || incomingTraceId.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        return incomingTraceId;
+    }
 }

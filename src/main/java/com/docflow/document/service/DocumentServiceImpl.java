@@ -17,6 +17,7 @@ import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.List;
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class DocumentServiceImpl implements DocumentService {
 
@@ -47,6 +49,8 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional
     public DocumentResponse create(CreateDocumentRequest request) {
+        log.info("Creating document: title={}, folderId={}, status={}",
+                request.getTitle(), request.getFolderId(), request.getStatus());
         User currentUser = getCurrentUser();
         Folder folder = resolveFolder(request.getFolderId());
 
@@ -61,6 +65,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .build();
 
         Document saved = documentRepository.save(document);
+        log.info("Document created successfully: documentId={}, createdBy={}", saved.getId(), currentUser.getId());
         DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(response.getId());
         activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "CREATE", java.util.Map.of(
@@ -80,6 +85,8 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional
     public DocumentResponse upload(Long id, MultipartFile file) {
+        log.info("Uploading document file: documentId={}, originalFilename={}",
+                id, file != null ? file.getOriginalFilename() : null);
         Document document = getActiveDocument(id);
         StoredFileResult storedFile = localFileStorageService.store(file);
 
@@ -90,6 +97,7 @@ public class DocumentServiceImpl implements DocumentService {
         document.setVersion(document.getVersion() + 1);
 
         Document saved = documentRepository.save(document);
+        log.info("Document file uploaded successfully: documentId={}, version={}", saved.getId(), saved.getVersion());
         DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
         activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPLOAD", java.util.Map.of(
@@ -108,6 +116,7 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getAll() {
+        log.debug("Loading document list");
         return documentRepository.findAllByDeletedFlagFalseOrderByCreatedAtDesc().stream()
                 .map(this::toResponse)
                 .toList();
@@ -122,8 +131,10 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional(readOnly = true)
     public DocumentResponse getById(Long id) {
+        log.debug("Loading document detail: documentId={}", id);
         return documentCacheService.getDocumentDetail(id)
                 .orElseGet(() -> {
+                    log.debug("Document cache miss: documentId={}", id);
                     DocumentResponse response = toResponse(getActiveDocument(id));
                     documentCacheService.cacheDocumentDetail(id, response);
                     return response;
@@ -140,6 +151,8 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional
     public DocumentResponse update(Long id, UpdateDocumentRequest request) {
+        log.info("Updating document: documentId={}, title={}, folderId={}, status={}",
+                id, request.getTitle(), request.getFolderId(), request.getStatus());
         Document document = getActiveDocument(id);
         Folder folder = resolveFolder(request.getFolderId());
 
@@ -150,6 +163,7 @@ public class DocumentServiceImpl implements DocumentService {
         document.setVersion(document.getVersion() + 1);
 
         Document saved = documentRepository.save(document);
+        log.info("Document updated successfully: documentId={}, version={}", saved.getId(), saved.getVersion());
         DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
         activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPDATE", java.util.Map.of(
@@ -168,9 +182,11 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional
     public void delete(Long id) {
+        log.info("Deleting document: documentId={}", id);
         Document document = getActiveDocument(id);
         document.setDeletedFlag(true);
         documentRepository.save(document);
+        log.info("Document soft-deleted successfully: documentId={}", document.getId());
         documentCacheService.evictDocumentDetail(id);
         activityLogService.log(getCurrentUser().getId(), "DOCUMENT", document.getId(), "DELETE", java.util.Map.of(
                 "title", document.getTitle()
@@ -186,8 +202,10 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional(readOnly = true)
     public Resource download(Long id) {
+        log.info("Downloading document: documentId={}", id);
         DocumentResponse response = getById(id);
         if (response.getStoredFileName() == null || response.getStoredFileName().isBlank()) {
+            log.warn("Document download rejected because no file is stored: documentId={}", id);
             throw new BadRequestException("Document file has not been uploaded");
         }
         Long currentUserId = getCurrentUser().getId();
@@ -196,6 +214,8 @@ public class DocumentServiceImpl implements DocumentService {
                 "fileName", response.getFileName(),
                 "version", response.getVersion()
         ));
+        log.info("Document download prepared successfully: documentId={}, storedFileName={}",
+                response.getId(), response.getStoredFileName());
         return localFileStorageService.loadAsResource(response.getStoredFileName());
     }
 
@@ -206,6 +226,7 @@ public class DocumentServiceImpl implements DocumentService {
      * @return 文件實體
      */
     private Document getActiveDocument(Long id) {
+        log.debug("Resolving active document: documentId={}", id);
         return documentRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Document not found"));
     }
@@ -217,6 +238,7 @@ public class DocumentServiceImpl implements DocumentService {
      */
     private User getCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
+        log.debug("Resolving current user for document operation: userId={}", userId);
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("Current user not found"));
     }
@@ -231,6 +253,7 @@ public class DocumentServiceImpl implements DocumentService {
         if (folderId == null) {
             return null;
         }
+        log.debug("Resolving document folder: folderId={}", folderId);
         return folderRepository.findByIdAndDeletedFlagFalse(folderId)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
     }
@@ -245,6 +268,7 @@ public class DocumentServiceImpl implements DocumentService {
         try {
             return DocumentStatus.valueOf(status.toUpperCase());
         } catch (Exception ex) {
+            log.warn("Invalid document status received: {}", status);
             throw new BadRequestException("Invalid document status");
         }
     }

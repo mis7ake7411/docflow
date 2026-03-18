@@ -5,6 +5,7 @@ import com.docflow.document.dto.HotDocumentItem;
 import com.docflow.document.dto.RecentViewItem;
 import com.docflow.infra.redis.RedisKeys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.util.Set;
  * {@link DocumentCacheService} 的 Redis 實作，負責文件快取、統計與分散式鎖。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class DocumentCacheServiceImpl implements DocumentCacheService {
 
@@ -39,8 +41,10 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
     public Optional<DocumentResponse> getDocumentDetail(Long documentId) {
         Object value = redisTemplate.opsForValue().get(RedisKeys.documentDetail(documentId));
         if (value instanceof DocumentResponse response) {
+            log.debug("Document cache hit: documentId={}", documentId);
             return Optional.of(response);
         }
+        log.debug("Document cache miss: documentId={}", documentId);
         return Optional.empty();
     }
 
@@ -52,6 +56,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void cacheDocumentDetail(Long documentId, DocumentResponse response) {
+        log.debug("Caching document detail: documentId={}, ttlSeconds={}", documentId, DOCUMENT_DETAIL_TTL.getSeconds());
         redisTemplate.opsForValue().set(RedisKeys.documentDetail(documentId), response, DOCUMENT_DETAIL_TTL);
     }
 
@@ -62,6 +67,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void evictDocumentDetail(Long documentId) {
+        log.debug("Evicting document detail cache: documentId={}", documentId);
         redisTemplate.delete(RedisKeys.documentDetail(documentId));
     }
 
@@ -73,6 +79,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void recordDocumentView(Long userId, DocumentResponse response) {
+        log.debug("Recording document view: userId={}, documentId={}", userId, response.getId());
         long now = Instant.now().toEpochMilli();
         String recentViewsKey = RedisKeys.recentViews(userId);
         String hotDocumentsKey = RedisKeys.hotDocuments();
@@ -91,6 +98,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public List<RecentViewItem> getRecentViews(Long userId) {
+        log.debug("Loading recent document views: userId={}", userId);
         String key = RedisKeys.recentViews(userId);
         Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object>> tuples =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, RECENT_VIEW_LIMIT - 1);
@@ -120,6 +128,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public List<HotDocumentItem> getHotDocuments() {
+        log.debug("Loading hot documents from cache");
         Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object>> tuples =
                 redisTemplate.opsForZSet().reverseRangeWithScores(RedisKeys.hotDocuments(), 0, HOT_DOCUMENT_LIMIT - 1);
 
@@ -149,6 +158,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void blacklistAccessToken(String token, long ttlSeconds) {
+        log.info("Blacklisting access token: ttlSeconds={}", ttlSeconds);
         redisTemplate.opsForValue().set(RedisKeys.authBlacklist(token), Boolean.TRUE, Duration.ofSeconds(ttlSeconds));
     }
 
@@ -176,6 +186,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
                 "locked",
                 DOCUMENT_UPDATE_LOCK_TTL
         );
+        log.debug("Acquire document update lock: documentId={}, acquired={}", documentId, Boolean.TRUE.equals(result));
         return Boolean.TRUE.equals(result);
     }
 
@@ -186,6 +197,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void releaseDocumentUpdateLock(Long documentId) {
+        log.debug("Release document update lock: documentId={}", documentId);
         redisTemplate.delete(RedisKeys.documentUpdateLock(documentId));
     }
 

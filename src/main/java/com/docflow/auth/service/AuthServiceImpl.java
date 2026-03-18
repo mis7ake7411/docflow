@@ -13,6 +13,7 @@ import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
  * {@link AuthService} 的預設實作，負責使用者註冊、登入與權杖生命週期管理。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
@@ -45,10 +47,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Registering user: username={}, email={}", request.getUsername(), request.getEmail());
         if (userRepository.existsByUsername(request.getUsername())) {
+            log.warn("Registration rejected due to duplicate username: {}", request.getUsername());
             throw new BadRequestException("Username already exists");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration rejected due to duplicate email: {}", request.getEmail());
             throw new BadRequestException("Email already exists");
         }
 
@@ -61,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        log.info("User registered successfully: userId={}", savedUser.getId());
         activityLogService.log(savedUser.getId(), "USER", savedUser.getId(), "REGISTER", java.util.Map.of(
                 "username", savedUser.getUsername(),
                 "email", savedUser.getEmail()
@@ -77,6 +83,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        log.info("Login attempt: username={}", request.getUsername());
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
@@ -84,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
+        log.info("Login successful: userId={}, username={}", user.getId(), user.getUsername());
         activityLogService.log(user.getId(), "USER", user.getId(), "LOGIN", java.util.Map.of(
                 "username", user.getUsername()
         ));
@@ -99,15 +107,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthTokenResponse refresh(RefreshRequest request) {
+        log.debug("Refreshing access token");
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new UnauthorizedException("Refresh token not found"));
 
         if (refreshToken.isRevokedFlag() || refreshToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            log.warn("Refresh token rejected: tokenId={}, revoked={}, expiredAt={}",
+                    refreshToken.getId(), refreshToken.isRevokedFlag(), refreshToken.getExpiredAt());
             throw new UnauthorizedException("Refresh token is invalid or expired");
         }
 
         User user = refreshToken.getUser();
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        log.info("Access token refreshed successfully: userId={}, tokenId={}", user.getId(), refreshToken.getId());
 
         return AuthTokenResponse.builder()
                 .accessToken(accessToken)
@@ -121,6 +133,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(readOnly = true)
     public UserSummaryResponse getCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
+        log.debug("Loading current user profile: userId={}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
         return toUserSummary(user);
@@ -134,6 +147,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(LogoutRequest request) {
+        log.info("Logout request received");
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new UnauthorizedException("Refresh token not found"));
 
@@ -144,6 +158,9 @@ public class AuthServiceImpl implements AuthService {
             authTokenBlacklistService.blacklist(request.getAccessToken(), jwtService.getAccessTokenExpirationSeconds());
         }
 
+        log.info("Logout completed: userId={}, tokenId={}",
+                refreshToken.getUser() != null ? refreshToken.getUser().getId() : null,
+                refreshToken.getId());
         activityLogService.log(
                 refreshToken.getUser() != null ? refreshToken.getUser().getId() : null,
                 "AUTH",
@@ -160,6 +177,7 @@ public class AuthServiceImpl implements AuthService {
      * @return 登入回應資料
      */
     private AuthResponse buildAuthResponse(User user) {
+        log.debug("Building auth response: userId={}", user.getId());
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
         String refreshTokenValue = jwtService.generateRefreshToken(user.getId(), user.getUsername(), user.getRole().name());
 
@@ -170,6 +188,7 @@ public class AuthServiceImpl implements AuthService {
                 .revokedFlag(false)
                 .build();
         refreshTokenRepository.save(refreshToken);
+        log.debug("Refresh token persisted: userId={}, tokenId={}", user.getId(), refreshToken.getId());
 
         return AuthResponse.builder()
                 .user(toUserSummary(user))

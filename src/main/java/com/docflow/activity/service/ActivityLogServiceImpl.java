@@ -7,6 +7,7 @@ import com.docflow.user.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ActivityLogServiceImpl implements ActivityLogService {
 
@@ -33,6 +35,8 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     @Override
     @Transactional
     public void log(Long userId, String targetType, Long targetId, String action, Map<String, Object> detail) {
+        log.debug("Writing activity log: userId={}, targetType={}, targetId={}, action={}",
+                userId, targetType, targetId, action);
         User user = null;
         if (userId != null) {
             user = userRepository.findById(userId).orElse(null);
@@ -47,6 +51,7 @@ public class ActivityLogServiceImpl implements ActivityLogService {
                 .build();
 
         activityLogRepository.save(activityLog);
+        log.debug("Activity log persisted: action={}, targetType={}, targetId={}", action, targetType, targetId);
     }
 
     /**
@@ -74,6 +79,7 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         try {
             return objectMapper.writeValueAsString(detail);
         } catch (JsonProcessingException ex) {
+            log.error("Failed to serialize activity detail: detail={}", detail, ex);
             throw new IllegalStateException("Failed to serialize activity detail", ex);
         }
     }
