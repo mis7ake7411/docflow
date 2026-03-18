@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -36,10 +37,19 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 const router = useRouter()
 
+watch(
+  () => authStore.isAuthenticated,
+  async (isAuthenticated) => {
+    if (!isAuthenticated && router.currentRoute.value.path !== '/login') {
+      await router.replace('/login')
+    }
+  },
+)
+
 async function handleLogout() {
   await authStore.logout()
   ElMessage.success('已登出')
-  await router.push('/login')
+  await router.replace('/login')
 }
 </script>
 
