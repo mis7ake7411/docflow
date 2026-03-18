@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,10 +54,10 @@ public class FolderServiceImpl implements FolderService {
                 .build();
 
         Folder saved = folderRepository.save(folder);
-        activityLogService.log(currentUser.getId(), "FOLDER", saved.getId(), "CREATE", java.util.Map.of(
-                "name", saved.getName(),
-                "parentId", saved.getParent() != null ? saved.getParent().getId() : null
-        ));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("name", saved.getName());
+        detail.put("parentId", saved.getParent() != null ? saved.getParent().getId() : null);
+        activityLogService.log(currentUser.getId(), "FOLDER", saved.getId(), "CREATE", detail);
         return toResponse(saved);
     }
 
@@ -103,11 +104,11 @@ public class FolderServiceImpl implements FolderService {
         folder.setSortOrder(request.getSortOrder());
 
         Folder saved = folderRepository.save(folder);
-        activityLogService.log(getCurrentUser().getId(), "FOLDER", saved.getId(), "UPDATE", java.util.Map.of(
-                "name", saved.getName(),
-                "parentId", saved.getParent() != null ? saved.getParent().getId() : null,
-                "sortOrder", saved.getSortOrder()
-        ));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("name", saved.getName());
+        detail.put("parentId", saved.getParent() != null ? saved.getParent().getId() : null);
+        detail.put("sortOrder", saved.getSortOrder());
+        activityLogService.log(getCurrentUser().getId(), "FOLDER", saved.getId(), "UPDATE", detail);
         return toResponse(saved);
     }
 
