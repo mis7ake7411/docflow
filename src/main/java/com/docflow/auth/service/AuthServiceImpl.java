@@ -7,7 +7,7 @@ import com.docflow.auth.repository.RefreshTokenRepository;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.exception.UnauthorizedException;
 import com.docflow.common.security.JwtService;
-import com.docflow.auth.service.AuthTokenBlacklistService;
+import com.docflow.common.security.SecurityUtils;
 import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
@@ -117,6 +117,15 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserSummaryResponse getCurrentUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+        return toUserSummary(user);
+    }
+
     /**
      * 註銷 refresh token，並視情況將 access token 加入黑名單。
      *
@@ -163,19 +172,23 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.builder()
-                .user(UserSummaryResponse.builder()
-                        .id(user.getId())
-                        .username(user.getUsername())
-                        .email(user.getEmail())
-                        .role(user.getRole().name())
-                        .status(user.getStatus().name())
-                        .build())
+                .user(toUserSummary(user))
                 .tokens(AuthTokenResponse.builder()
                         .accessToken(accessToken)
                         .refreshToken(refreshTokenValue)
                         .tokenType("Bearer")
                         .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                         .build())
+                .build();
+    }
+
+    private UserSummaryResponse toUserSummary(User user) {
+        return UserSummaryResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .status(user.getStatus().name())
                 .build();
     }
 }

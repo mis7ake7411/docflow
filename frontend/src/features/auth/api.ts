@@ -50,6 +50,11 @@ export async function refreshToken(request: RefreshRequest): Promise<AuthTokens>
   return response.data.data
 }
 
+export async function getCurrentUser(): Promise<UserSummary> {
+  const response = await apiClient.get<ApiResponse<UserSummary>>('/api/auth/me')
+  return response.data.data
+}
+
 export async function logout(request: LogoutRequest): Promise<void> {
   await apiClient.post('/api/auth/logout', request)
 }

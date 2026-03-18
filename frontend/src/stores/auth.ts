@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { login, logout, refreshToken, type LoginRequest } from '@/features/auth/api'
+import { getCurrentUser, login, logout, refreshToken, type LoginRequest } from '@/features/auth/api'
 import type { UserSummary } from '@/shared/types/auth'
 
 interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   user: UserSummary | null
+  initialized: boolean
 }
 
 const ACCESS_TOKEN_KEY = 'docflow.accessToken'
@@ -17,9 +18,10 @@ export const useAuthStore = defineStore('auth', {
     accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
     refreshToken: localStorage.getItem(REFRESH_TOKEN_KEY),
     user: localStorage.getItem(USER_KEY) ? JSON.parse(localStorage.getItem(USER_KEY) as string) : null,
+    initialized: false,
   }),
   getters: {
-    isAuthenticated: (state) => Boolean(state.accessToken),
+    isAuthenticated: (state) => Boolean(state.accessToken && state.user),
   },
   actions: {
     setAuth(payload: { accessToken: string; refreshToken: string; user: UserSummary }) {
@@ -47,6 +49,7 @@ export const useAuthStore = defineStore('auth', {
         refreshToken: response.tokens.refreshToken,
         user: response.user,
       })
+      this.initialized = true
     },
     async refreshAccessToken(): Promise<string | null> {
       if (!this.refreshToken) {
@@ -64,6 +67,32 @@ export const useAuthStore = defineStore('auth', {
         return null
       }
     },
+    async bootstrapAuth() {
+      if (this.initialized) {
+        return
+      }
+
+      try {
+        if (!this.accessToken && this.refreshToken) {
+          const tokens = await refreshToken({ refreshToken: this.refreshToken })
+          this.accessToken = tokens.accessToken
+          localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+        }
+
+        if (!this.accessToken) {
+          this.clearAuth()
+          return
+        }
+
+        const user = await getCurrentUser()
+        this.user = user
+        localStorage.setItem(USER_KEY, JSON.stringify(user))
+      } catch (error) {
+        this.clearAuth()
+      } finally {
+        this.initialized = true
+      }
+    },
     async logout() {
       try {
         if (this.refreshToken) {
@@ -74,6 +103,7 @@ export const useAuthStore = defineStore('auth', {
         }
       } finally {
         this.clearAuth()
+        this.initialized = true
       }
     },
   },

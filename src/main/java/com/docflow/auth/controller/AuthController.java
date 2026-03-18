@@ -1,16 +1,27 @@
 package com.docflow.auth.controller;
 
-import com.docflow.auth.dto.*;
+import com.docflow.auth.dto.AuthResponse;
+import com.docflow.auth.dto.AuthTokenResponse;
+import com.docflow.auth.dto.LoginRequest;
+import com.docflow.auth.dto.LogoutRequest;
+import com.docflow.auth.dto.RefreshRequest;
+import com.docflow.auth.dto.RegisterRequest;
+import com.docflow.auth.dto.UserSummaryResponse;
 import com.docflow.auth.service.AuthService;
 import com.docflow.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 提供註冊、登入、刷新權杖與登出 API。
+ * 提供註冊、登入、權杖刷新、目前登入者查詢與登出 API。
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -67,5 +78,12 @@ public class AuthController {
     public ApiResponse<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request);
         return ApiResponse.success(null, "Logout successful");
+    }
+
+    @Operation(summary = "Get current user", description = "Return current authenticated user profile")
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/me")
+    public ApiResponse<UserSummaryResponse> me() {
+        return ApiResponse.success(authService.getCurrentUser());
     }
 }

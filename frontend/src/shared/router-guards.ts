@@ -2,15 +2,15 @@ import type { Router } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 export function setupRouterGuards(router: Router) {
-  router.beforeEach((to) => {
+  router.beforeEach(async (to) => {
     const authStore = useAuthStore()
-    const isAuthenticated = authStore.isAuthenticated
+    await authStore.bootstrapAuth()
 
-    if (to.path !== '/login' && !isAuthenticated) {
+    if (to.path !== '/login' && !authStore.isAuthenticated) {
       return '/login'
     }
 
-    if (to.path === '/login' && isAuthenticated) {
+    if (to.path === '/login' && authStore.isAuthenticated) {
       return '/app'
     }
 

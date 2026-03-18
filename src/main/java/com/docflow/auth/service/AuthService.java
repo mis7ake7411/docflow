@@ -1,25 +1,31 @@
 package com.docflow.auth.service;
 
-import com.docflow.auth.dto.*;
+import com.docflow.auth.dto.AuthResponse;
+import com.docflow.auth.dto.AuthTokenResponse;
+import com.docflow.auth.dto.LoginRequest;
+import com.docflow.auth.dto.LogoutRequest;
+import com.docflow.auth.dto.RefreshRequest;
+import com.docflow.auth.dto.RegisterRequest;
+import com.docflow.auth.dto.UserSummaryResponse;
 
 /**
- * 提供認證相關操作，例如註冊、登入、刷新權杖與登出。
+ * 提供註冊、登入、權杖刷新、目前登入者查詢與登出功能。
  */
 public interface AuthService {
 
     /**
-     * 註冊新使用者並回傳登入資訊。
+     * 註冊新使用者並建立登入權杖。
      *
      * @param request 註冊資料
-     * @return 使用者資訊與權杖
+     * @return 使用者與權杖資訊
      */
     AuthResponse register(RegisterRequest request);
 
     /**
-     * 驗證帳號密碼並回傳登入資訊。
+     * 驗證帳號密碼並建立登入權杖。
      *
      * @param request 登入資料
-     * @return 使用者資訊與權杖
+     * @return 使用者與權杖資訊
      */
     AuthResponse login(LoginRequest request);
 
@@ -30,6 +36,13 @@ public interface AuthService {
      * @return 新的權杖資訊
      */
     AuthTokenResponse refresh(RefreshRequest request);
+
+    /**
+     * 取得目前已登入使用者資料。
+     *
+     * @return 目前登入者摘要
+     */
+    UserSummaryResponse getCurrentUser();
 
     /**
      * 註銷 refresh token，並視情況將 access token 加入黑名單。
