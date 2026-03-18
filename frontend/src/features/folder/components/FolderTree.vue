@@ -139,4 +139,25 @@ function countNodes(nodes: FolderTreeNode[]): number {
   margin-top: 12px;
   padding-left: 0;
 }
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header-actions {
+    justify-content: space-between;
+  }
+
+  .tree-node {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tree-actions {
+    margin-left: -8px;
+  }
+}
 </style>

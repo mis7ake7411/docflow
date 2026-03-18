@@ -9,7 +9,8 @@
     <el-alert v-else-if="error" title="最近查看資料載入失敗" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!items.length" description="目前沒有最近查看資料" />
 
-    <el-table v-else :data="items" stripe>
+    <div v-else class="table-wrapper">
+      <el-table :data="items" stripe>
       <el-table-column prop="title" label="Title" min-width="180" />
       <el-table-column prop="status" label="Status" width="120" />
       <el-table-column label="Viewed Score" width="140">
@@ -17,7 +18,8 @@
           {{ scope.row.score }}
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+    </div>
   </div>
 </template>
 
@@ -44,5 +46,17 @@ const items = computed(() => data.value ?? [])
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
 }
 </style>

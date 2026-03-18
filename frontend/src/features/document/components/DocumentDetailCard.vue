@@ -54,4 +54,14 @@ function formatFileSize(size: number | null) {
 .full {
   grid-column: 1 / -1;
 }
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .full {
+    grid-column: auto;
+  }
+}
 </style>

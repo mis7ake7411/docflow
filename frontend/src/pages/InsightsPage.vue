@@ -27,4 +27,20 @@ import ActivityLogTable from '@/features/activity/components/ActivityLogTable.vu
 .full-width {
   grid-column: 1 / -1;
 }
+
+@media (max-width: 900px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .full-width {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .insights-grid {
+    gap: 16px;
+  }
+}
 </style>

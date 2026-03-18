@@ -82,10 +82,30 @@ async function handleDownload() {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 16px;
 }
 
 .action-group {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .header-row {
+    flex-direction: column;
+    margin-bottom: 16px;
+  }
+
+  .action-group {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .action-group :deep(.el-button) {
+    flex: 1 1 140px;
+    margin-left: 0;
+  }
 }
 </style>

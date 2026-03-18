@@ -9,7 +9,8 @@
     <el-alert v-else-if="error" title="活動紀錄載入失敗" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!items.length" description="目前沒有活動紀錄" />
 
-    <el-table v-else :data="items" stripe>
+    <div v-else class="table-wrapper">
+      <el-table :data="items" stripe>
       <el-table-column prop="action" label="Action" width="140" />
       <el-table-column prop="targetType" label="Target Type" width="140" />
       <el-table-column prop="targetId" label="Target ID" width="120" />
@@ -23,7 +24,8 @@
           {{ formatDate(scope.row.createdAt) }}
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+    </div>
   </div>
 </template>
 
@@ -58,5 +60,17 @@ function formatDate(value: string) {
 
 .detail-text {
   word-break: break-word;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
 }
 </style>

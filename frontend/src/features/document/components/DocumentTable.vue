@@ -12,7 +12,8 @@
     <el-alert v-else-if="error" title="Document list 載入失敗" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!filteredDocuments.length" description="目前沒有文件" />
 
-    <el-table v-else :data="filteredDocuments" stripe>
+    <div v-else class="table-wrapper">
+      <el-table :data="filteredDocuments" stripe>
       <el-table-column prop="title" label="Title" min-width="220" />
       <el-table-column prop="status" label="Status" width="120" />
       <el-table-column prop="version" label="Version" width="100" />
@@ -22,7 +23,7 @@
           {{ formatDate(scope.row.updatedAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="Actions" width="220" fixed="right">
+      <el-table-column label="Actions" width="220">
         <template #default="scope">
           <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
           <el-button text @click="openEditDialog(scope.row)">編輯</el-button>
@@ -33,7 +34,8 @@
           </el-popconfirm>
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+    </div>
 
     <DocumentFormDialog v-model="createDialogVisible" :document="null" />
     <DocumentFormDialog v-model="editDialogVisible" :document="editingDocument" />
@@ -114,5 +116,17 @@ function formatDate(value: string) {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
 }
 </style>

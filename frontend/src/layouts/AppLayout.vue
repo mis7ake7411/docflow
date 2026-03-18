@@ -86,6 +86,7 @@ async function handleLogout() {
 
 .main-panel {
   padding: 24px;
+  min-width: 0;
 }
 
 .topbar {
@@ -93,5 +94,38 @@ async function handleLogout() {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    padding: 20px 24px;
+    gap: 16px;
+  }
+
+  .nav-links {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    padding: 16px;
+  }
+
+  .main-panel {
+    padding: 16px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 16px;
+  }
 }
 </style>

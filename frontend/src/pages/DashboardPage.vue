@@ -24,4 +24,16 @@ import DocumentTable from '@/features/document/components/DocumentTable.vue'
   grid-template-columns: 320px 1fr;
   gap: 24px;
 }
+
+@media (max-width: 1080px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    gap: 16px;
+  }
+}
 </style>
