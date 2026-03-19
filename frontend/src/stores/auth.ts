@@ -12,6 +12,25 @@ interface AuthState {
 const ACCESS_TOKEN_KEY = 'docflow.accessToken'
 const REFRESH_TOKEN_KEY = 'docflow.refreshToken'
 const USER_KEY = 'docflow.user'
+const BOOTSTRAP_TIMEOUT_MS = 12000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error('auth bootstrap timeout'))
+    }, timeoutMs)
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
+}
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -74,20 +93,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       try {
-        if (!this.accessToken && this.refreshToken) {
-          const tokens = await refreshToken({ refreshToken: this.refreshToken })
-          this.accessToken = tokens.accessToken
-          localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
-        }
-
-        if (!this.accessToken) {
-          this.clearAuth()
-          return
-        }
-
-        const user = await getCurrentUser()
-        this.user = user
-        localStorage.setItem(USER_KEY, JSON.stringify(user))
+        await withTimeout(this.bootstrapSession(), BOOTSTRAP_TIMEOUT_MS)
       } catch (error) {
         this.clearAuth()
       } finally {
@@ -106,6 +112,22 @@ export const useAuthStore = defineStore('auth', {
         this.clearAuth()
         this.initialized = true
       }
+    },
+    async bootstrapSession() {
+      if (!this.accessToken && this.refreshToken) {
+        const tokens = await refreshToken({ refreshToken: this.refreshToken })
+        this.accessToken = tokens.accessToken
+        localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+      }
+
+      if (!this.accessToken) {
+        this.clearAuth()
+        return
+      }
+
+      const user = await getCurrentUser()
+      this.user = user
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
     },
   },
 })
