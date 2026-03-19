@@ -1,10 +1,10 @@
 <template>
   <el-form ref="formRef" :model="form" label-position="top" @submit.prevent="handleSubmit">
-    <el-form-item label="Username">
+    <el-form-item label="帳號">
       <el-input v-model="form.username" placeholder="請輸入帳號" />
     </el-form-item>
 
-    <el-form-item label="Password">
+    <el-form-item label="密碼">
       <el-input v-model="form.password" type="password" placeholder="請輸入密碼" show-password />
     </el-form-item>
 
@@ -48,8 +48,8 @@ async function handleSubmit() {
     })
     ElMessage.success('登入成功')
     await router.push('/app')
-  } catch (error) {
-    errorMessage.value = '登入失敗，請檢查帳號密碼或後端服務狀態'
+  } catch {
+    errorMessage.value = '登入失敗，請確認帳號密碼是否正確。'
   } finally {
     submitting.value = false
   }

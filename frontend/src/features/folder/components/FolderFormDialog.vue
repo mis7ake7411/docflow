@@ -1,12 +1,12 @@
 <template>
   <el-dialog :model-value="modelValue" :title="isEdit ? '編輯資料夾' : '新增資料夾'" width="520px" @close="emit('update:modelValue', false)">
     <el-form label-position="top">
-      <el-form-item label="Name">
-        <el-input v-model="form.name" placeholder="輸入資料夾名稱" />
+      <el-form-item label="名稱">
+        <el-input v-model="form.name" placeholder="請輸入資料夾名稱" />
       </el-form-item>
 
-      <el-form-item label="Parent Folder">
-        <el-select v-model="form.parentId" clearable placeholder="選擇父資料夾" style="width: 100%">
+      <el-form-item label="上層資料夾">
+        <el-select v-model="form.parentId" clearable placeholder="選擇上層資料夾" style="width: 100%">
           <el-option :value="null" label="無" />
           <el-option
             v-for="option in parentOptions"
@@ -17,7 +17,7 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Sort Order">
+      <el-form-item label="排序">
         <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
       </el-form-item>
     </el-form>

@@ -1,31 +1,32 @@
 <template>
-  <div class="detail-grid" v-if="document">
-    <div class="detail-item"><strong>Title:</strong> {{ document.title }}</div>
-    <div class="detail-item"><strong>Status:</strong> {{ document.status }}</div>
-    <div class="detail-item"><strong>Version:</strong> {{ document.version }}</div>
-    <div class="detail-item"><strong>Folder ID:</strong> {{ document.folderId ?? 'None' }}</div>
-    <div class="detail-item full"><strong>Description:</strong> {{ document.description || '—' }}</div>
-    <div class="detail-item"><strong>File Name:</strong> {{ document.fileName || '—' }}</div>
-    <div class="detail-item"><strong>Content Type:</strong> {{ document.contentType || '—' }}</div>
-    <div class="detail-item"><strong>File Size:</strong> {{ formatFileSize(document.fileSize) }}</div>
-    <div class="detail-item"><strong>Updated At:</strong> {{ formatDate(document.updatedAt) }}</div>
+  <div v-if="document" class="detail-grid">
+    <div class="detail-item"><strong>標題：</strong>{{ document.title }}</div>
+    <div class="detail-item"><strong>狀態：</strong>{{ getStatusLabel(document.status) }}</div>
+    <div class="detail-item"><strong>版本：</strong>{{ document.version }}</div>
+    <div class="detail-item"><strong>資料夾編號：</strong>{{ document.folderId ?? '無' }}</div>
+    <div class="detail-item full"><strong>描述：</strong>{{ document.description || '未填寫' }}</div>
+    <div class="detail-item"><strong>檔名：</strong>{{ document.fileName || '尚未上傳' }}</div>
+    <div class="detail-item"><strong>檔案類型：</strong>{{ document.contentType || '未提供' }}</div>
+    <div class="detail-item"><strong>檔案大小：</strong>{{ formatFileSize(document.fileSize) }}</div>
+    <div class="detail-item"><strong>更新時間：</strong>{{ formatDate(document.updatedAt) }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { DocumentItem } from '@/features/document/api'
+import { getStatusLabel } from '@/shared/utils/display'
 
 defineProps<{
   document: DocumentItem | null
 }>()
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString()
+  return new Date(value).toLocaleString('zh-TW')
 }
 
 function formatFileSize(size: number | null) {
   if (!size) {
-    return '—'
+    return '無'
   }
   if (size < 1024) {
     return `${size} B`

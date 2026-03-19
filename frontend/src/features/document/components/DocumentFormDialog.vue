@@ -1,19 +1,19 @@
 <template>
   <el-dialog :model-value="modelValue" :title="isEdit ? '編輯文件' : '新增文件'" width="520px" @close="emit('update:modelValue', false)">
     <el-form label-position="top">
-      <el-form-item label="Title">
-        <el-input v-model="form.title" placeholder="輸入文件標題" />
+      <el-form-item label="標題">
+        <el-input v-model="form.title" placeholder="請輸入文件標題" />
       </el-form-item>
 
-      <el-form-item label="Description">
-        <el-input v-model="form.description" type="textarea" :rows="4" placeholder="輸入描述" />
+      <el-form-item label="描述">
+        <el-input v-model="form.description" type="textarea" :rows="4" placeholder="請輸入文件描述" />
       </el-form-item>
 
-      <el-form-item label="Status">
+      <el-form-item label="狀態">
         <el-select v-model="form.status" style="width: 100%">
-          <el-option label="DRAFT" value="DRAFT" />
-          <el-option label="ACTIVE" value="ACTIVE" />
-          <el-option label="ARCHIVED" value="ARCHIVED" />
+          <el-option label="草稿" value="DRAFT" />
+          <el-option label="啟用" value="ACTIVE" />
+          <el-option label="封存" value="ARCHIVED" />
         </el-select>
       </el-form-item>
     </el-form>
@@ -81,7 +81,8 @@ const createMutation = useMutation({
 })
 
 const updateMutation = useMutation({
-  mutationFn: ({ id, payload }: { id: number; payload: { folderId: number | null; title: string; description: string; status: string } }) => updateDocument(id, payload),
+  mutationFn: ({ id, payload }: { id: number; payload: { folderId: number | null; title: string; description: string; status: string } }) =>
+    updateDocument(id, payload),
   onSuccess: async (_, variables) => {
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
     await queryClient.invalidateQueries({ queryKey: ['documents', 'detail', variables.id] })

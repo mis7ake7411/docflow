@@ -42,13 +42,13 @@ export const appRoutes: RouteRecordRaw[] = [
     name: 'dashboard',
     component: DashboardPage,
     meta: {
-      title: 'Dashboard',
+      title: '儀表板',
       subtitle: '管理資料夾與文件內容',
-      breadcrumb: ['工作台', 'Dashboard'],
+      breadcrumb: ['工作台', '儀表板'],
       requiresAuth: true,
       roles: ['USER', 'ADMIN'],
       menu: true,
-      menuLabel: 'Dashboard',
+      menuLabel: '儀表板',
     },
   },
   {
@@ -56,7 +56,7 @@ export const appRoutes: RouteRecordRaw[] = [
     name: 'document-detail',
     component: DocumentDetailPage,
     meta: {
-      title: 'Document Detail',
+      title: '文件明細',
       subtitle: '檢視文件內容與附件檔案操作',
       breadcrumb: ['工作台', '文件明細'],
       requiresAuth: true,
@@ -68,13 +68,13 @@ export const appRoutes: RouteRecordRaw[] = [
     name: 'insights',
     component: InsightsPage,
     meta: {
-      title: 'Insights',
+      title: '洞察報表',
       subtitle: '檢視熱門文件、最近瀏覽與活動紀錄',
-      breadcrumb: ['工作台', 'Insights'],
+      breadcrumb: ['工作台', '洞察報表'],
       requiresAuth: true,
       roles: ['USER', 'ADMIN'],
       menu: true,
-      menuLabel: 'Insights',
+      menuLabel: '洞察報表',
     },
   },
 ]

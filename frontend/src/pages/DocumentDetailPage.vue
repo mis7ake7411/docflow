@@ -4,20 +4,20 @@
       <div class="page-card">
         <div class="header-row">
           <div>
-            <h1>Document Detail</h1>
-            <p class="muted">查看、更新、上傳與下載文件。</p>
+            <h1>文件明細</h1>
+            <p class="muted">檢視文件內容、編輯欄位與下載附件。</p>
           </div>
-          <div class="action-group" v-if="document">
+          <div v-if="document" class="action-group">
             <el-button @click="openEditDialog">編輯</el-button>
             <el-button type="primary" @click="uploadDialogVisible = true">上傳檔案</el-button>
-            <el-button type="success" :disabled="!document.storedFileName" @click="handleDownload">下載</el-button>
+            <el-button type="success" :disabled="!document.storedFileName" @click="handleDownload">下載檔案</el-button>
           </div>
         </div>
 
         <el-skeleton v-if="isLoading" :rows="8" animated />
-        <el-alert v-else-if="error" title="Document detail 載入失敗" type="error" show-icon :closable="false" />
+        <el-alert v-else-if="error" title="文件明細載入失敗" type="error" show-icon :closable="false" />
         <DocumentDetailCard v-else-if="document" :document="document" />
-        <el-empty v-else description="找不到文件" />
+        <el-empty v-else description="找不到文件資料" />
       </div>
     </div>
 
@@ -66,7 +66,7 @@ async function handleDownload() {
   link.download = document.value.fileName || `document-${document.value.id}`
   link.click()
   window.URL.revokeObjectURL(url)
-  ElMessage.success('下載已開始')
+  ElMessage.success('檔案下載成功')
 }
 </script>
 

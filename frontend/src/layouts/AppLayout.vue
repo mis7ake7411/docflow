@@ -22,7 +22,7 @@
         </div>
       </div>
 
-      <nav class="nav-links" aria-label="Main navigation">
+      <nav class="nav-links" aria-label="主要導覽">
         <RouterLink
           v-for="item in visibleNavItems"
           :key="item.path"
@@ -37,7 +37,7 @@
 
       <div v-show="!isSidebarContentHidden" class="sidebar-footer">
         <p class="muted">目前角色</p>
-        <strong>{{ authStore.userRole || '訪客' }}</strong>
+        <strong>{{ getRoleLabel(authStore.userRole) }}</strong>
       </div>
     </aside>
 
@@ -78,9 +78,9 @@
 
         <div class="topbar-actions">
           <div class="user-card">
-            <strong>{{ authStore.user?.username || 'Guest' }}</strong>
-            <p class="muted">{{ authStore.user?.email || 'Not logged in' }}</p>
-            <p v-if="authStore.userRole" class="role-chip">{{ authStore.userRole }}</p>
+            <strong>{{ authStore.user?.username || '訪客' }}</strong>
+            <p class="muted">{{ authStore.user?.email || '尚未登入' }}</p>
+            <p v-if="authStore.userRole" class="role-chip">{{ getRoleLabel(authStore.userRole) }}</p>
           </div>
           <el-button type="danger" plain @click="handleLogout">登出</el-button>
         </div>
@@ -100,6 +100,7 @@ import { ElMessage } from 'element-plus'
 import { navigationRoutes } from '@/router/routes'
 import { hasAnyRole } from '@/shared/auth/permissions'
 import { PageHeader } from '@/shared/components'
+import { getRoleLabel } from '@/shared/utils/display'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 

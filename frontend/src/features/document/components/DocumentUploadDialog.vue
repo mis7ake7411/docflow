@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :model-value="modelValue" title="上傳文件" width="480px" @close="emit('update:modelValue', false)">
+  <el-dialog :model-value="modelValue" title="上傳檔案" width="480px" @close="emit('update:modelValue', false)">
     <el-upload
       drag
       :auto-upload="false"
@@ -9,7 +9,7 @@
       :on-remove="handleRemove"
     >
       <el-icon><upload-filled /></el-icon>
-      <div class="el-upload__text">拖曳檔案到這裡，或點擊上傳</div>
+      <div class="el-upload__text">將檔案拖曳到這裡，或點擊選擇檔案</div>
     </el-upload>
 
     <template #footer>

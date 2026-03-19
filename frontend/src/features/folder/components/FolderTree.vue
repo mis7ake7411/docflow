@@ -1,15 +1,15 @@
 <template>
   <div>
     <div class="section-header">
-      <h3>Folders</h3>
+      <h3>資料夾</h3>
       <div class="header-actions">
-        <span class="muted">{{ totalCount }} folders</span>
+        <span class="muted">{{ totalCount }} 個資料夾</span>
         <el-button type="primary" text @click="openCreateDialog">新增</el-button>
       </div>
     </div>
 
     <el-skeleton v-if="isLoading" :rows="6" animated />
-    <el-alert v-else-if="error" title="Folder tree 載入失敗" type="error" show-icon :closable="false" />
+    <el-alert v-else-if="error" title="資料夾樹載入失敗" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!treeData.length" description="目前沒有資料夾" />
 
     <el-tree
@@ -69,7 +69,7 @@ const deleteMutation = useMutation({
   mutationFn: deleteFolder,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
-    ElMessage.success('資料夾刪除成功')
+    ElMessage.success('資料夾已刪除')
   },
 })
 

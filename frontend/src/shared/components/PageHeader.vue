@@ -10,7 +10,7 @@
     </el-breadcrumb>
 
     <div class="title-block">
-      <p class="eyebrow">Workspace</p>
+      <p class="eyebrow">工作台</p>
       <h1>{{ title }}</h1>
       <p class="muted">{{ subtitle }}</p>
     </div>

@@ -2,7 +2,7 @@
   <div class="page-shell login-page">
     <div class="page-card login-card">
       <h1>DocFlow Lite</h1>
-      <p class="muted">請登入以操作文件管理系統。</p>
+      <p class="muted">登入後即可管理文件、資料夾與活動紀錄。</p>
       <LoginForm />
     </div>
   </div>

@@ -1,7 +1,7 @@
 <template>
   <div class="page-card card-section">
     <div class="section-header">
-      <h3>Activity Logs</h3>
+      <h3>活動紀錄</h3>
       <span class="muted">最近系統活動</span>
     </div>
 
@@ -11,19 +11,27 @@
 
     <div v-else class="table-wrapper">
       <el-table :data="items" stripe>
-      <el-table-column prop="action" label="Action" width="140" />
-      <el-table-column prop="targetType" label="Target Type" width="140" />
-      <el-table-column prop="targetId" label="Target ID" width="120" />
-      <el-table-column label="Detail" min-width="260">
-        <template #default="scope">
-          <span class="detail-text">{{ scope.row.detailJson || '—' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="Created At" min-width="180">
-        <template #default="scope">
-          {{ formatDate(scope.row.createdAt) }}
-        </template>
-      </el-table-column>
+        <el-table-column label="動作" width="140">
+          <template #default="scope">
+            {{ getActionLabel(scope.row.action) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="目標類型" width="140">
+          <template #default="scope">
+            {{ getTargetTypeLabel(scope.row.targetType) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="targetId" label="目標編號" width="120" />
+        <el-table-column label="內容" min-width="260">
+          <template #default="scope">
+            <span class="detail-text">{{ scope.row.detailJson || '無' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="建立時間" min-width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
       </el-table>
     </div>
   </div>
@@ -33,6 +41,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { getActivities } from '@/features/activity/api'
+import { getActionLabel, getTargetTypeLabel } from '@/shared/utils/display'
 
 const { data, isLoading, error } = useQuery({
   queryKey: ['activities', 'recent'],
@@ -42,7 +51,7 @@ const { data, isLoading, error } = useQuery({
 const items = computed(() => data.value ?? [])
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString()
+  return new Date(value).toLocaleString('zh-TW')
 }
 </script>
 

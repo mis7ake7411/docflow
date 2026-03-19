@@ -2,38 +2,42 @@
   <div>
     <div class="section-header">
       <div>
-        <h3>Documents</h3>
+        <h3>文件</h3>
         <p class="muted">{{ sectionDescription }}</p>
       </div>
       <el-button type="primary" @click="openCreateDialog">新增文件</el-button>
     </div>
 
     <el-skeleton v-if="isLoading" :rows="8" animated />
-    <el-alert v-else-if="error" title="Document list 載入失敗" type="error" show-icon :closable="false" />
+    <el-alert v-else-if="error" title="文件清單載入失敗" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!filteredDocuments.length" description="目前沒有文件" />
 
     <div v-else class="table-wrapper">
       <el-table :data="filteredDocuments" stripe>
-      <el-table-column prop="title" label="Title" min-width="220" />
-      <el-table-column prop="status" label="Status" width="120" />
-      <el-table-column prop="version" label="Version" width="100" />
-      <el-table-column prop="fileName" label="File" min-width="180" />
-      <el-table-column label="Updated At" min-width="180">
-        <template #default="scope">
-          {{ formatDate(scope.row.updatedAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="Actions" width="220">
-        <template #default="scope">
-          <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
-          <el-button text @click="openEditDialog(scope.row)">編輯</el-button>
-          <el-popconfirm title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
-            <template #reference>
-              <el-button text type="danger">刪除</el-button>
-            </template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
+        <el-table-column prop="title" label="標題" min-width="220" />
+        <el-table-column label="狀態" width="120">
+          <template #default="scope">
+            {{ getStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="version" label="版本" width="100" />
+        <el-table-column prop="fileName" label="檔名" min-width="180" />
+        <el-table-column label="更新時間" min-width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.updatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220">
+          <template #default="scope">
+            <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
+            <el-button text @click="openEditDialog(scope.row)">編輯</el-button>
+            <el-popconfirm title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
+              <template #reference>
+                <el-button text type="danger">刪除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
 
@@ -50,6 +54,7 @@ import { ElMessage } from 'element-plus'
 import { deleteDocument, getDocuments, type DocumentItem } from '@/features/document/api'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
+import { getStatusLabel } from '@/shared/utils/display'
 
 const router = useRouter()
 const uiStore = useUiStore()
@@ -68,7 +73,7 @@ const deleteMutation = useMutation({
   mutationFn: deleteDocument,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
-    ElMessage.success('文件刪除成功')
+    ElMessage.success('文件已刪除')
   },
 })
 
@@ -106,7 +111,7 @@ async function handleDelete(documentId: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString()
+  return new Date(value).toLocaleString('zh-TW')
 }
 </script>
 

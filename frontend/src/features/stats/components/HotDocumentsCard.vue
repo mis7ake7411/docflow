@@ -1,8 +1,8 @@
 <template>
   <div class="page-card card-section">
     <div class="section-header">
-      <h3>Hot Documents</h3>
-      <span class="muted">熱門文件排行</span>
+      <h3>熱門文件</h3>
+      <span class="muted">依熱門分數排序</span>
     </div>
 
     <el-skeleton v-if="isLoading" :rows="5" animated />
@@ -11,9 +11,13 @@
 
     <div v-else class="table-wrapper">
       <el-table :data="items" stripe>
-      <el-table-column prop="title" label="Title" min-width="180" />
-      <el-table-column prop="status" label="Status" width="120" />
-      <el-table-column prop="score" label="Score" width="120" />
+        <el-table-column prop="title" label="標題" min-width="180" />
+        <el-table-column label="狀態" width="120">
+          <template #default="scope">
+            {{ getStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="score" label="分數" width="120" />
       </el-table>
     </div>
   </div>
@@ -23,6 +27,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { getHotDocuments } from '@/features/stats/api'
+import { getStatusLabel } from '@/shared/utils/display'
 
 const { data, isLoading, error } = useQuery({
   queryKey: ['stats', 'hot-documents'],
