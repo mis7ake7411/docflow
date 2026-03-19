@@ -1,44 +1,46 @@
 <template>
-  <div>
+  <div class="folder-panel">
     <div class="section-header">
-      <h3>資料夾</h3>
-      <div class="header-actions">
-        <span class="muted">{{ totalCount }} 個資料夾</span>
-        <el-button type="primary" text @click="openCreateDialog">新增</el-button>
+      <div>
+        <h3>資料夾列表</h3>
+        <p class="muted">共 {{ totalCount }} 個資料夾</p>
       </div>
+      <el-button type="primary" @click="openCreateDialog">新增資料夾</el-button>
     </div>
 
-    <el-skeleton v-if="isLoading" :rows="6" animated />
-    <el-alert v-else-if="error" title="資料夾樹載入失敗" type="error" show-icon :closable="false" />
-    <el-empty v-else-if="!treeData.length" description="目前沒有資料夾" />
+    <div class="folder-content">
+      <el-skeleton v-if="isLoading" :rows="6" animated />
+      <el-alert v-else-if="error" title="資料夾樹載入失敗" type="error" show-icon :closable="false" />
+      <el-empty v-else-if="!treeData.length" description="目前沒有資料夾" />
 
-    <el-tree
-      v-else
-      :data="treeData"
-      node-key="id"
-      :props="treeProps"
-      highlight-current
-      default-expand-all
-      @node-click="handleNodeClick"
-    >
-      <template #default="{ data }">
-        <div class="tree-node">
-          <span>{{ data.name }}</span>
-          <span class="tree-actions">
-            <el-button text size="small" @click.stop="openEditDialog(data)">編輯</el-button>
-            <el-popconfirm title="確定刪除這個資料夾？" @confirm="handleDelete(data.id)">
-              <template #reference>
-                <el-button text size="small" type="danger" @click.stop>刪除</el-button>
-              </template>
-            </el-popconfirm>
-          </span>
-        </div>
-      </template>
-    </el-tree>
+      <el-tree
+        v-else
+        :data="treeData"
+        node-key="id"
+        :props="treeProps"
+        highlight-current
+        default-expand-all
+        @node-click="handleNodeClick"
+      >
+        <template #default="{ data }">
+          <div class="tree-node">
+            <span class="node-name">{{ data.name }}</span>
+            <span class="tree-actions">
+              <el-button text size="small" @click.stop="openEditDialog(data)">編輯</el-button>
+              <el-popconfirm title="確定刪除這個資料夾？" @confirm="handleDelete(data.id)">
+                <template #reference>
+                  <el-button text size="small" type="danger" @click.stop>刪除</el-button>
+                </template>
+              </el-popconfirm>
+            </span>
+          </div>
+        </template>
+      </el-tree>
+    </div>
 
-    <el-button class="all-documents-btn" text @click="handleAllDocuments">
-      顯示全部文件
-    </el-button>
+    <div class="panel-footer">
+      <button type="button" class="footer-link" @click="handleAllDocuments">顯示全部文件</button>
+    </div>
 
     <FolderFormDialog v-model="createDialogVisible" :folder="null" :tree-data="treeData" />
     <FolderFormDialog v-model="editDialogVisible" :folder="editingFolder" :tree-data="treeData" />
@@ -108,17 +110,33 @@ function countNodes(nodes: FolderTreeNode[]): number {
 </script>
 
 <style scoped>
+.folder-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 12px;
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid #edf2f7;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.section-header h3,
+.section-header p {
+  margin: 0;
+}
+
+.section-header p {
+  margin-top: 8px;
+}
+
+.folder-content {
+  flex: 1;
+  padding: 20px 24px;
 }
 
 .tree-node {
@@ -129,35 +147,41 @@ function countNodes(nodes: FolderTreeNode[]): number {
   gap: 12px;
 }
 
+.node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tree-actions {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.all-documents-btn {
-  margin-top: 12px;
-  padding-left: 0;
+.panel-footer {
+  padding: 0 24px 20px;
+}
+
+.footer-link {
+  border: 0;
+  background: transparent;
+  color: #26b3bc;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
 }
 
 @media (max-width: 768px) {
   .section-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    padding: 16px;
   }
 
-  .header-actions {
-    justify-content: space-between;
-  }
-
-  .tree-node {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .tree-actions {
-    margin-left: -8px;
+  .folder-content,
+  .panel-footer {
+    padding-inline: 16px;
   }
 }
 </style>

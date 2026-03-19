@@ -25,7 +25,7 @@ const ACTION_LABELS: Record<string, string> = {
   REFRESH: '刷新權杖',
   DOWNLOAD: '下載',
   UPLOAD: '上傳',
-  VIEW: '檢視',
+  VIEW: '查看',
 }
 
 export function getStatusLabel(status: string | null | undefined) {

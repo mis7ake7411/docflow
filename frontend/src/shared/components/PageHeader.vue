@@ -10,7 +10,6 @@
     </el-breadcrumb>
 
     <div class="title-block">
-      <p class="eyebrow">工作台</p>
       <h1>{{ title }}</h1>
       <p class="muted">{{ subtitle }}</p>
     </div>
@@ -29,26 +28,22 @@ defineProps<{
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .title-block h1 {
-  margin: 4px 0 8px;
-  font-size: 2rem;
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1.15;
 }
 
-.eyebrow {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #2563eb;
+.title-block .muted {
+  margin: 8px 0 0;
 }
 
 @media (max-width: 768px) {
   .title-block h1 {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
   }
 }
 </style>
