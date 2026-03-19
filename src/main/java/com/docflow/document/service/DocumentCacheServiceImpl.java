@@ -1,8 +1,11 @@
 package com.docflow.document.service;
 
+import com.docflow.common.exception.BadRequestException;
 import com.docflow.document.dto.DocumentResponse;
 import com.docflow.document.dto.HotDocumentItem;
 import com.docflow.document.dto.RecentViewItem;
+import com.docflow.document.entity.Document;
+import com.docflow.document.repository.DocumentRepository;
 import com.docflow.infra.redis.RedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
     private static final int HOT_DOCUMENT_LIMIT = 10;
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final DocumentRepository documentRepository;
 
     /**
      * 取得文件明細快取。
@@ -110,7 +114,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
 
         for (org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object> tuple : tuples) {
             Long documentId = Long.parseLong(String.valueOf(tuple.getValue()));
-            getDocumentDetail(documentId).ifPresent(document -> results.add(RecentViewItem.builder()
+            resolveDocument(documentId).ifPresent(document -> results.add(RecentViewItem.builder()
                     .documentId(document.getId())
                     .title(document.getTitle())
                     .status(document.getStatus())
@@ -139,7 +143,7 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
 
         for (org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object> tuple : tuples) {
             Long documentId = Long.parseLong(String.valueOf(tuple.getValue()));
-            getDocumentDetail(documentId).ifPresent(document -> results.add(HotDocumentItem.builder()
+            resolveDocument(documentId).ifPresent(document -> results.add(HotDocumentItem.builder()
                     .documentId(document.getId())
                     .title(document.getTitle())
                     .status(document.getStatus())
@@ -210,5 +214,36 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
     private long sizeOfZSet(String key) {
         Long size = redisTemplate.opsForZSet().zCard(key);
         return size == null ? 0 : size;
+    }
+
+    private Optional<DocumentResponse> resolveDocument(Long documentId) {
+        return getDocumentDetail(documentId)
+                .or(() -> documentRepository.findByIdAndDeletedFlagFalse(documentId).map(this::toResponse))
+                .map(response -> {
+                    cacheDocumentDetail(documentId, response);
+                    return response;
+                });
+    }
+
+    private DocumentResponse toResponse(Document document) {
+        if (document.getCreatedBy() == null) {
+            throw new BadRequestException("Document creator not found");
+        }
+
+        return DocumentResponse.builder()
+                .id(document.getId())
+                .folderId(document.getFolder() != null ? document.getFolder().getId() : null)
+                .title(document.getTitle())
+                .description(document.getDescription())
+                .fileName(document.getFileName())
+                .storedFileName(document.getStoredFileName())
+                .contentType(document.getContentType())
+                .fileSize(document.getFileSize())
+                .version(document.getVersion())
+                .status(document.getStatus().name())
+                .createdBy(document.getCreatedBy().getId())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .build();
     }
 }

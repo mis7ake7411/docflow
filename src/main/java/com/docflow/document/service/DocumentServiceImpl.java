@@ -200,7 +200,7 @@ public class DocumentServiceImpl implements DocumentService {
      * @return 可供下載的檔案資源
      */
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Resource download(Long id) {
         log.info("Downloading document: documentId={}", id);
         DocumentResponse response = getById(id);
