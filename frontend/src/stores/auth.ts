@@ -22,6 +22,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken && state.user),
+    userRole: (state) => state.user?.role ?? null,
   },
   actions: {
     setAuth(payload: { accessToken: string; refreshToken: string; user: UserSummary }) {

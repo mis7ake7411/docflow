@@ -18,4 +18,9 @@ setupRouterGuards(router)
 app.use(ElementPlus)
 app.use(VueQueryPlugin, { queryClient })
 
+router.afterEach((to) => {
+  const title = to.meta.title ? `${to.meta.title} | DocFlow Lite` : 'DocFlow Lite'
+  document.title = title
+})
+
 app.mount('#app')

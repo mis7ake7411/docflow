@@ -11,21 +11,34 @@
 
 body {
   margin: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #app {
   min-height: 100vh;
 }
 
+body.app-density-comfortable {
+  --page-shell-padding: 24px;
+  --page-card-padding: 24px;
+  --page-card-radius: 16px;
+}
+
+body.app-density-compact {
+  --page-shell-padding: 16px;
+  --page-card-padding: 18px;
+  --page-card-radius: 12px;
+}
+
 .page-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: var(--page-shell-padding, 24px);
 }
 
 .page-card {
   background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: var(--page-card-radius, 16px);
+  padding: var(--page-card-padding, 24px);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
@@ -35,11 +48,11 @@ body {
 
 @media (max-width: 768px) {
   .page-shell {
-    padding: 16px;
+    padding: min(var(--page-shell-padding, 24px), 16px);
   }
 
   .page-card {
-    padding: 16px;
-    border-radius: 12px;
+    padding: min(var(--page-card-padding, 24px), 16px);
+    border-radius: min(var(--page-card-radius, 16px), 12px);
   }
 }
