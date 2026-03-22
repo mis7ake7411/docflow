@@ -1,6 +1,7 @@
 package com.docflow.document.controller;
 
 import com.docflow.common.response.ApiResponse;
+import com.docflow.common.response.PagedResponse;
 import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;
 import com.docflow.document.dto.UpdateDocumentRequest;
@@ -57,14 +58,20 @@ public class DocumentController {
     }
 
     /**
-     * 取得所有文件列表。
+     * 取得文件列表，支援分頁（page: 0-based, size）。
+     * 若未提供 page/size，會回傳預設的第一頁（page=0）與大小（size=10）。
      *
-     * @return 文件列表
+     * @param page 頁碼（0-based）
+     * @param size 每頁筆數
+     * @return 分頁文件清單
      */
-    @Operation(summary = "List documents")
+    @Operation(summary = "List documents (paged)")
     @GetMapping
-    public ApiResponse<List<DocumentResponse>> getAll() {
-        return ApiResponse.success(documentService.getAll());
+    public ApiResponse<PagedResponse<DocumentResponse>> getAll(
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size
+    ) {
+        return ApiResponse.success(documentService.getPaged(page, size));
     }
 
     /**

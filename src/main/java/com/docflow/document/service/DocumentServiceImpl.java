@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 /**
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
@@ -120,6 +123,22 @@ public class DocumentServiceImpl implements DocumentService {
         return documentRepository.findAllByDeletedFlagFalseOrderByCreatedAtDesc().stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size) {
+        log.debug("Loading paged document list: page={}, size={}", page, size);
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
+        Page<Document> results = documentRepository.findAllByDeletedFlagFalse(pageable);
+        List<DocumentResponse> items = results.stream().map(this::toResponse).toList();
+        return com.docflow.common.response.PagedResponse.<DocumentResponse>builder()
+                .items(items)
+                .page(results.getNumber())
+                .size(results.getSize())
+                .totalElements(results.getTotalElements())
+                .totalPages(results.getTotalPages())
+                .build();
     }
 
     /**

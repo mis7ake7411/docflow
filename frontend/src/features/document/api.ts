@@ -36,9 +36,12 @@ export interface UpdateDocumentRequest {
   status: string
 }
 
-export async function getDocuments(): Promise<DocumentItem[]> {
-  const response = await apiClient.get<ApiResponse<DocumentItem[]>>('/api/documents')
-  return response.data.data
+export async function getDocuments(page = 0, size = 100): Promise<DocumentItem[]> {
+  const response = await apiClient.get<ApiResponse<any>>('/api/documents', { params: { page, size } })
+  // backend 回傳 PagedResponse 在 data.data
+  const payload = response.data.data
+  if (!payload) return []
+  return payload.items ?? []
 }
 
 export async function getDocumentDetail(id: number): Promise<DocumentItem> {

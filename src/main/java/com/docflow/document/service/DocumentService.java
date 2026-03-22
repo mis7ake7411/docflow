@@ -38,6 +38,14 @@ public interface DocumentService {
     List<DocumentResponse> getAll();
 
     /**
+     * 取得分頁的文件清單。
+     *
+     * @param page 頁碼（0-based）
+     * @param size 每頁筆數
+     */
+    com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size);
+
+    /**
      * 取得指定文件明細。
      *
      * @param id 文件編號

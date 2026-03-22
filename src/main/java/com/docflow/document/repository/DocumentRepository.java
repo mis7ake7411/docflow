@@ -1,6 +1,8 @@
 package com.docflow.document.repository;
 
 import com.docflow.document.entity.Document;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -17,6 +19,11 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 文件列表
      */
     List<Document> findAllByDeletedFlagFalseOrderByCreatedAtDesc();
+
+    /**
+     * 取得分頁的未刪除文件。
+     */
+    Page<Document> findAllByDeletedFlagFalse(Pageable pageable);
 
     /**
      * 依編號查詢未刪除文件。
