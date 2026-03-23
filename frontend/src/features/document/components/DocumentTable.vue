@@ -1,44 +1,44 @@
-<template>
+ï»¿<template>
   <div class="document-panel">
     <div class="section-header">
       <div>
-        <h3>¤å¥ó¦Cªí</h3>
+        <h3>æ–‡ä»¶åˆ—è¡¨</h3>
         <p class="muted">{{ sectionDescription }}</p>
       </div>
 
       <div class="header-actions">
-        <button type="button" class="header-icon" @click="refreshTable">¨ê·s</button>
-        <button type="button" class="header-icon">³]©w</button>
-        <el-button type="primary" @click="openCreateDialog">·s¼W¤å¥ó</el-button>
+        <button type="button" class="header-icon" @click="refreshTable">åˆ·æ–°</button>
+        <button type="button" class="header-icon">è¨­å®š</button>
+        <el-button type="primary" @click="openCreateDialog">æ–°å¢æ–‡ä»¶</el-button>
       </div>
     </div>
 
     <div class="table-container">
       <el-skeleton v-if="isLoading" :rows="8" animated />
-      <el-alert v-else-if="error" title="¤å¥ó²M³æ¸ü¤J¥¢±Ñ" type="error" show-icon :closable="false" />
-      <el-empty v-else-if="!items.length" description="¥Ø«e¨S¦³¤å¥ó" />
+      <el-alert v-else-if="error" title="æ–‡ä»¶æ¸…å–®è¼‰å…¥å¤±æ•—" type="error" show-icon :closable="false" />
+      <el-empty v-else-if="!items.length" description="ç›®å‰æ²’æœ‰æ–‡ä»¶" />
 
       <el-table v-else :data="items" stripe>
-        <el-table-column prop="title" label="¼ĞÃD" min-width="220" />
-        <el-table-column label="ª¬ºA" width="120">
+        <el-table-column prop="title" label="æ¨™é¡Œ" min-width="220" />
+        <el-table-column label="ç‹€æ…‹" width="120">
           <template #default="scope">
             {{ getStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column prop="version" label="ª©¥»" width="90" />
-        <el-table-column prop="fileName" label="ÀÉ¦W" min-width="160" />
-        <el-table-column label="§ó·s®É¶¡" min-width="180">
+        <el-table-column prop="version" label="ç‰ˆæœ¬" width="90" />
+        <el-table-column prop="fileName" label="æª”å" min-width="160" />
+        <el-table-column label="æ›´æ–°æ™‚é–“" min-width="180">
           <template #default="scope">
             {{ formatDate(scope.row.updatedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="¾Ş§@" width="220">
+        <el-table-column label="æ“ä½œ" width="220">
           <template #default="scope">
-            <el-button text type="primary" @click="openDetail(scope.row.id)">¬d¬İ</el-button>
-            <el-button text @click="openEditDialog(scope.row)">½s¿è</el-button>
-            <el-popconfirm title="½T©w§R°£³o¥÷¤å¥ó¡H" @confirm="handleDelete(scope.row.id)">
+            <el-button text type="primary" @click="openDetail(scope.row.id)">æŸ¥çœ‹</el-button>
+            <el-button text @click="openEditDialog(scope.row)">ç·¨è¼¯</el-button>
+            <el-popconfirm title="ç¢ºå®šåˆªé™¤é€™ä»½æ–‡ä»¶ï¼Ÿ" @confirm="handleDelete(scope.row.id)">
               <template #reference>
-                <el-button text type="danger">§R°£</el-button>
+                <el-button text type="danger">åˆªé™¤</el-button>
               </template>
             </el-popconfirm>
           </template>
@@ -99,7 +99,7 @@ const deleteMutation = useMutation({
   mutationFn: deleteDocument,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
-    ElMessage.success('¤å¥ó¤w§R°£')
+    ElMessage.success('æ–‡ä»¶å·²åˆªé™¤')
   },
 })
 
@@ -113,10 +113,10 @@ const selectedFolderName = computed(() => {
 
 const sectionDescription = computed(() => {
   if (!uiStore.selectedFolderId) {
-    return 'Åã¥Ü¥ş³¡¤å¥ó'
+    return 'é¡¯ç¤ºå…¨éƒ¨æ–‡ä»¶'
   }
   const name = selectedFolderName.value ?? uiStore.selectedFolderId
-  return `¥Ø«eÅã¥Ü¸ê®Æ§¨ #${name} ªº¤å¥ó`
+  return `ç›®å‰é¡¯ç¤ºè³‡æ–™å¤¾ #${name} çš„æ–‡ä»¶`
 })
 
 function openDetail(documentId: number) {
@@ -243,3 +243,4 @@ function findFolderName(nodes: FolderTreeNode[], targetId: number): string | nul
   }
 }
 </style>
+

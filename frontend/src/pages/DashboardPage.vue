@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <AppLayout>
     <div class="dashboard-grid">
       <TotalDocumentsCard />
@@ -47,3 +47,4 @@ import ActivityLogTable from '@/features/activity/components/ActivityLogTable.vu
   }
 }
 </style>
+
