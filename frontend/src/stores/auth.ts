@@ -1,5 +1,15 @@
 import { defineStore } from 'pinia'
-import { getCurrentUser, login, logout, refreshToken, type LoginRequest } from '@/features/auth/api'
+import {
+  changePassword,
+  getCurrentUser,
+  login,
+  logout,
+  refreshToken,
+  register,
+  type ChangePasswordRequest,
+  type LoginRequest,
+  type RegisterRequest,
+} from '@/features/auth/api'
 import type { UserSummary } from '@/shared/types/auth'
 
 interface AuthState {
@@ -84,6 +94,15 @@ export const useAuthStore = defineStore('auth', {
       })
       this.initialized = true
     },
+    async register(payload: RegisterRequest) {
+      const response = await register(payload)
+      this.setAuth({
+        accessToken: response.tokens.accessToken,
+        refreshToken: response.tokens.refreshToken,
+        user: response.user,
+      })
+      this.initialized = true
+    },
     async refreshAccessToken(): Promise<string | null> {
       if (!this.refreshToken) {
         this.clearAuth()
@@ -124,6 +143,16 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.clearAuth()
         this.initialized = true
+      }
+    },
+    async changePassword(payload: ChangePasswordRequest) {
+      await changePassword(payload)
+      if (this.user) {
+        this.user = {
+          ...this.user,
+          mustChangePassword: false,
+        }
+        localStorage.setItem(USER_KEY, JSON.stringify(this.user))
       }
     },
     async bootstrapSession() {

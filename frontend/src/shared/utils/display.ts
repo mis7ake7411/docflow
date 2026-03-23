@@ -1,6 +1,7 @@
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: '草稿',
   ACTIVE: '啟用',
+  INACTIVE: '停用',
   ARCHIVED: '封存',
 }
 

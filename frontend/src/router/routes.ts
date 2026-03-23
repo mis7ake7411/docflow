@@ -3,6 +3,8 @@ import DashboardPage from '@/pages/DashboardPage.vue'
 import DocumentDetailPage from '@/pages/DocumentDetailPage.vue'
 import FileManagementPage from '@/pages/FileManagementPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import RegisterPage from '@/pages/RegisterPage.vue'
+import UserManagementPage from '@/pages/UserManagementPage.vue'
 
 export type AppRole = 'USER' | 'ADMIN' | 'MANAGER'
 
@@ -38,6 +40,17 @@ export const appRoutes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/register',
+    name: 'register',
+    component: RegisterPage,
+    meta: {
+      title: '註冊',
+      subtitle: '建立 DocFlow Lite 使用帳號',
+      breadcrumb: ['註冊'],
+      publicOnly: true,
+    },
+  },
+  {
     path: '/app',
     name: 'dashboard',
     component: DashboardPage,
@@ -46,7 +59,7 @@ export const appRoutes: RouteRecordRaw[] = [
       subtitle: '總覽文件狀態與使用趨勢',
       breadcrumb: ['首頁', '儀表板'],
       requiresAuth: true,
-      roles: ['USER', 'ADMIN'],
+      roles: ['USER', 'ADMIN', 'MANAGER'],
       menu: true,
       menuLabel: '儀表板',
     },
@@ -60,7 +73,7 @@ export const appRoutes: RouteRecordRaw[] = [
       subtitle: '集中管理資料夾與文件內容',
       breadcrumb: ['首頁', '文件管理'],
       requiresAuth: true,
-      roles: ['USER', 'ADMIN'],
+      roles: ['USER', 'ADMIN', 'MANAGER'],
       menu: true,
       menuLabel: '文件管理',
     },
@@ -74,7 +87,21 @@ export const appRoutes: RouteRecordRaw[] = [
       subtitle: '查看文件內容、上傳附件與下載檔案',
       breadcrumb: ['首頁', '文件詳情'],
       requiresAuth: true,
-      roles: ['USER', 'ADMIN'],
+      roles: ['USER', 'ADMIN', 'MANAGER'],
+    },
+  },
+  {
+    path: '/app/users',
+    name: 'user-management',
+    component: UserManagementPage,
+    meta: {
+      title: '使用者管理',
+      subtitle: '新增與管理使用者帳號',
+      breadcrumb: ['首頁', '使用者管理'],
+      requiresAuth: true,
+      roles: ['ADMIN', 'MANAGER'],
+      menu: true,
+      menuLabel: '使用者管理',
     },
   },
   {

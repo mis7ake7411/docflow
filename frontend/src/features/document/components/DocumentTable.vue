@@ -9,7 +9,7 @@
       <div class="header-actions">
         <button type="button" class="header-icon" @click="refreshTable">刷新</button>
         <button type="button" class="header-icon">設定</button>
-        <el-button type="primary" @click="openCreateDialog">新增文件</el-button>
+        <el-button v-if="!isManager" type="primary" @click="openCreateDialog">新增文件</el-button>
       </div>
     </div>
 
@@ -35,8 +35,8 @@
         <el-table-column label="操作" width="220">
           <template #default="scope">
             <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
-            <el-button text @click="openEditDialog(scope.row)">編輯</el-button>
-            <el-popconfirm title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
+            <el-button v-if="!isManager" text @click="openEditDialog(scope.row)">編輯</el-button>
+            <el-popconfirm v-if="!isManager" title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
               <template #reference>
                 <el-button text type="danger">刪除</el-button>
               </template>
@@ -72,10 +72,12 @@ import { deleteDocument, getDocuments, type DocumentItem } from '@/features/docu
 import { getFolderTree, type FolderTreeNode } from '@/features/folder/api'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
 import { getStatusLabel } from '@/shared/utils/display'
 
 const router = useRouter()
 const uiStore = useUiStore()
+const authStore = useAuthStore()
 const queryClient = useQueryClient()
 
 const createDialogVisible = ref(false)
@@ -105,6 +107,7 @@ const deleteMutation = useMutation({
 
 const items = computed(() => data.value?.items ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 const selectedFolderName = computed(() => {
   const folderId = uiStore.selectedFolderId
   if (!folderId || !folderTree.value) return null

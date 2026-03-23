@@ -1,16 +1,9 @@
 import { apiClient } from '@/shared/api/axios'
+import type { UserSummary } from '@/shared/types/auth'
 
 export interface LoginRequest {
   username: string
   password: string
-}
-
-export interface UserSummary {
-  id: number
-  username: string
-  email: string
-  role: string
-  status: string
 }
 
 export interface AuthTokens {
@@ -40,8 +33,24 @@ export interface LogoutRequest {
   accessToken?: string
 }
 
+export interface RegisterRequest {
+  username: string
+  email: string
+  password: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
 export async function login(request: LoginRequest): Promise<AuthResponse> {
   const response = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/login', request)
+  return response.data.data
+}
+
+export async function register(request: RegisterRequest): Promise<AuthResponse> {
+  const response = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/register', request)
   return response.data.data
 }
 
@@ -53,6 +62,10 @@ export async function refreshToken(request: RefreshRequest): Promise<AuthTokens>
 export async function getCurrentUser(): Promise<UserSummary> {
   const response = await apiClient.get<ApiResponse<UserSummary>>('/api/auth/me')
   return response.data.data
+}
+
+export async function changePassword(request: ChangePasswordRequest): Promise<void> {
+  await apiClient.post('/api/auth/change-password', request)
 }
 
 export async function logout(request: LogoutRequest): Promise<void> {
