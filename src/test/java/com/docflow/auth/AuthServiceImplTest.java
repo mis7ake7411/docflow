@@ -15,52 +15,54 @@ import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
 import com.docflow.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
-    @Mock
     private UserRepository userRepository;
-
-    @Mock
     private RefreshTokenRepository refreshTokenRepository;
-
-    @Mock
     private PasswordEncoder passwordEncoder;
-
-    @Mock
     private AuthenticationManager authenticationManager;
-
-    @Mock
     private JwtService jwtService;
-
-    @Mock
     private AuthTokenBlacklistService authTokenBlacklistService;
-
-    @Mock
     private ActivityLogService activityLogService;
 
-    @InjectMocks
     private AuthServiceImpl authService;
+
+    @BeforeEach
+    void setUp() {
+        userRepository = Mockito.mock(UserRepository.class);
+        refreshTokenRepository = Mockito.mock(RefreshTokenRepository.class);
+        passwordEncoder = Mockito.mock(PasswordEncoder.class);
+        authenticationManager = Mockito.mock(AuthenticationManager.class);
+        jwtService = Mockito.mock(JwtService.class);
+        authTokenBlacklistService = Mockito.mock(AuthTokenBlacklistService.class);
+        activityLogService = Mockito.mock(ActivityLogService.class);
+
+        authService = new AuthServiceImpl(
+                userRepository,
+                refreshTokenRepository,
+                passwordEncoder,
+                authenticationManager,
+                jwtService,
+                authTokenBlacklistService,
+                activityLogService
+        );
+    }
 
     @Test
     void registerShouldSetDefaultRoleAndStatus() {
@@ -69,12 +71,23 @@ class AuthServiceImplTest {
         request.setEmail("alice@example.com");
         request.setPassword("password123");
 
-        when(userRepository.existsByUsername("alice")).thenReturn(false);
-        when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("encoded");
-        when(userRepository.save(Mockito.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        stubAuthTokens();
-        doNothing().when(activityLogService).log(Mockito.<Long>any(), anyString(), Mockito.<Long>any(), anyString(), any());
+        Mockito.when(userRepository.existsByUsername("alice")).thenReturn(false);
+        Mockito.when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        Mockito.when(passwordEncoder.encode("password123")).thenReturn("hash");
+        Mockito.when(jwtService.generateAccessToken(Mockito.anyLong(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn("access");
+        Mockito.when(jwtService.generateRefreshToken(Mockito.anyLong(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn("refresh");
+        Mockito.when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(3600L);
+        Mockito.when(jwtService.getRefreshTokenExpirationSeconds()).thenReturn(3600L);
+        Mockito.when(refreshTokenRepository.save(Mockito.any(RefreshToken.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        Mockito.when(userRepository.save(Mockito.any(User.class)))
+                .thenAnswer(invocation -> {
+                    User user = invocation.getArgument(0);
+                    user.setId(1L);
+                    return user;
+                });
 
         AuthResponse response = authService.register(request);
 
@@ -89,7 +102,7 @@ class AuthServiceImplTest {
         request.setEmail("alice@example.com");
         request.setPassword("password123");
 
-        when(userRepository.existsByUsername("alice")).thenReturn(true);
+        Mockito.when(userRepository.existsByUsername("alice")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(BadRequestException.class);
@@ -107,20 +120,16 @@ class AuthServiceImplTest {
                 .passwordHash("hash")
                 .role(UserRole.USER)
                 .status(UserStatus.INACTIVE)
+                .mustChangePassword(false)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+        Mockito.when(authenticationManager.authenticate(Mockito.any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(new UsernamePasswordAuthenticationToken("alice", "password123"));
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.of(inactive));
+        Mockito.when(userRepository.findByUsername("alice")).thenReturn(Optional.of(inactive));
+
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(UnauthorizedException.class);
-    }
-
-    private void stubAuthTokens() {
-        when(jwtService.generateAccessToken(Mockito.<Long>any(), anyString(), anyString())).thenReturn("access-token");
-        when(jwtService.generateRefreshToken(Mockito.<Long>any(), anyString(), anyString())).thenReturn("refresh-token");
-        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(3600L);
-        when(jwtService.getRefreshTokenExpirationSeconds()).thenReturn(7200L);
-        when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 }
