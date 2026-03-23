@@ -14,4 +14,5 @@ public class UserSummaryResponse {
     private String email;
     private String role;
     private String status;
+    private boolean mustChangePassword;
 }

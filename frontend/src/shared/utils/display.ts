@@ -7,6 +7,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   USER: '一般使用者',
   ADMIN: '管理員',
+  MANAGER: '主管',
 }
 
 const TARGET_TYPE_LABELS: Record<string, string> = {

@@ -91,6 +91,11 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            log.warn("Login rejected due to inactive user: userId={}, username={}", user.getId(), user.getUsername());
+            throw new UnauthorizedException("User is inactive");
+        }
+
         log.info("Login successful: userId={}, username={}", user.getId(), user.getUsername());
         activityLogService.log(user.getId(), "USER", user.getId(), "LOGIN", java.util.Map.of(
                 "username", user.getUsername()
@@ -208,6 +213,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
+                .mustChangePassword(user.isMustChangePassword())
                 .build();
     }
 }

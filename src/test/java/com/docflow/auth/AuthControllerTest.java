@@ -66,6 +66,39 @@ class AuthControllerTest {
     }
 
     @Test
+    void registerShouldReturnMustChangePasswordFlag() throws Exception {
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername("alice");
+        request.setEmail("alice@example.com");
+        request.setPassword("password123");
+
+        AuthResponse response = AuthResponse.builder()
+                .user(UserSummaryResponse.builder()
+                        .id(1L)
+                        .username("alice")
+                        .email("alice@example.com")
+                        .role("USER")
+                        .status("ACTIVE")
+                        .mustChangePassword(false)
+                        .build())
+                .tokens(AuthTokenResponse.builder()
+                        .accessToken("access-token")
+                        .refreshToken("refresh-token")
+                        .tokenType("Bearer")
+                        .expiresIn(3600)
+                        .build())
+                .build();
+
+        Mockito.when(authService.register(Mockito.any(RegisterRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.user.mustChangePassword").value(false));
+    }
+
+    @Test
     @WithMockUser
     void logoutShouldReturnSuccessResponse() throws Exception {
         LogoutRequest request = new LogoutRequest();

@@ -4,7 +4,7 @@ import DocumentDetailPage from '@/pages/DocumentDetailPage.vue'
 import FileManagementPage from '@/pages/FileManagementPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 
-export type AppRole = 'USER' | 'ADMIN'
+export type AppRole = 'USER' | 'ADMIN' | 'MANAGER'
 
 export interface AppRouteMeta {
   title: string
