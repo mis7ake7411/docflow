@@ -2,6 +2,7 @@ package com.docflow.auth.service;
 
 import com.docflow.auth.dto.AuthResponse;
 import com.docflow.auth.dto.AuthTokenResponse;
+import com.docflow.auth.dto.ChangePasswordRequest;
 import com.docflow.auth.dto.LoginRequest;
 import com.docflow.auth.dto.LogoutRequest;
 import com.docflow.auth.dto.RefreshRequest;
@@ -43,6 +44,13 @@ public interface AuthService {
      * @return 目前登入者摘要
      */
     UserSummaryResponse getCurrentUser();
+
+    /**
+     * 更新目前使用者密碼
+     *
+     * @param request 變更密碼請求
+     */
+    void changePassword(ChangePasswordRequest request);
 
     /**
      * 註銷 refresh token，並視情況將 access token 加入黑名單。
