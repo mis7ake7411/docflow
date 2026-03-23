@@ -27,16 +27,15 @@ public class StaticCacheControlFilter extends OncePerRequestFilter {
         boolean isAsset = path.startsWith(ASSET_PREFIX);
         boolean isIndex = "/".equals(path) || "/index.html".equals(path);
 
-        filterChain.doFilter(request, response);
-
-        if (response.isCommitted()) {
-            return;
-        }
-
+        // 先寫入快取標頭，避免靜態資源在回應已提交後無法覆寫
         if (isAsset) {
             response.setHeader("Cache-Control", CACHE_IMMUTABLE);
         } else if (isIndex) {
             response.setHeader("Cache-Control", CACHE_NO);
+            response.setHeader("Pragma", "no-cache");
+            response.setHeader("Expires", "0");
         }
+
+        filterChain.doFilter(request, response);
     }
 }
