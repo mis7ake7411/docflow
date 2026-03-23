@@ -11,12 +11,13 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleForbiddenShouldReturn403() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
-        ForbiddenException ex = new ForbiddenException("無權限操作此文件");
+        String message = "無權限操作此文件";
+        ForbiddenException ex = new ForbiddenException(message);
 
         ResponseEntity<ApiResponse<Void>> response = handler.handleForbidden(ex);
 
         assertThat(response.getStatusCode().value()).isEqualTo(403);
-        assertThat(response.getBody().getMessage()).isEqualTo("無權限操作此文件");
+        assertThat(response.getBody().getMessage()).isEqualTo(message);
         assertThat(response.getBody().isSuccess()).isFalse();
     }
 }
