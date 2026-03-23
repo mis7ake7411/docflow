@@ -69,6 +69,7 @@ import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { deleteDocument, getDocuments, type DocumentItem } from '@/features/document/api'
+import { getFolderTree, type FolderTreeNode } from '@/features/folder/api'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
 import { getStatusLabel } from '@/shared/utils/display'
@@ -89,6 +90,11 @@ const { data, isLoading, error, refetch } = useQuery({
   queryFn: () => getDocuments(currentPage.value - 1, pageSize.value, uiStore.selectedFolderId),
 })
 
+const { data: folderTree } = useQuery({
+  queryKey: ['folders', 'tree'],
+  queryFn: getFolderTree,
+})
+
 const deleteMutation = useMutation({
   mutationFn: deleteDocument,
   onSuccess: async () => {
@@ -99,12 +105,18 @@ const deleteMutation = useMutation({
 
 const items = computed(() => data.value?.items ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
+const selectedFolderName = computed(() => {
+  const folderId = uiStore.selectedFolderId
+  if (!folderId || !folderTree.value) return null
+  return findFolderName(folderTree.value, folderId)
+})
 
 const sectionDescription = computed(() => {
   if (!uiStore.selectedFolderId) {
     return '顯示全部文件'
   }
-  return `目前顯示資料夾 #${uiStore.selectedFolderId} 的文件`
+  const name = selectedFolderName.value ?? uiStore.selectedFolderId
+  return `目前顯示資料夾 #${name} 的文件`
 })
 
 function openDetail(documentId: number) {
@@ -147,6 +159,19 @@ watch(
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-TW')
+}
+
+function findFolderName(nodes: FolderTreeNode[], targetId: number): string | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return node.name
+    }
+    if (node.children?.length) {
+      const match = findFolderName(node.children, targetId)
+      if (match) return match
+    }
+  }
+  return null
 }
 </script>
 

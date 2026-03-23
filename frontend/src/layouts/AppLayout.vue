@@ -54,12 +54,6 @@
         </div>
 
         <div class="shell-topbar-right">
-          <div class="header-actions">
-            <button type="button" class="header-icon">搜</button>
-            <button type="button" class="header-icon">鈴</button>
-            <button type="button" class="header-icon">設</button>
-          </div>
-
           <div class="density-switch" aria-label="內容密度設定">
             <button
               type="button"
