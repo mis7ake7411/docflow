@@ -265,6 +265,9 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private void assertCanModifyDocument(User currentUser, Document document) {
+        if (document.getCreatedBy() == null || document.getCreatedBy().getId() == null) {
+            throw new ForbiddenException("無權限操作此文件");
+        }
         if (currentUser.getRole() == UserRole.ADMIN
                 || currentUser.getRole() == UserRole.MANAGER) {
             return;

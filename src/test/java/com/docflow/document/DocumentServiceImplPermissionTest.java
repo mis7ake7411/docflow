@@ -183,6 +183,18 @@ class DocumentServiceImplPermissionTest {
         assertThat(response.getId()).isEqualTo(1L);
     }
 
+    @Test
+    void adminCannotUpdateDocumentWithoutCreator() {
+        setCurrentUser(2L, UserRole.ADMIN);
+        Document document = buildDocument(1L, null);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+
+        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest()))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此文件");
+    }
+
     private void setCurrentUser(Long userId, UserRole role) {
         User user = buildUser(userId, role);
         DocflowUserPrincipal principal = new DocflowUserPrincipal(user);
@@ -194,13 +206,14 @@ class DocumentServiceImplPermissionTest {
     }
 
     private Document buildDocument(Long documentId, Long createdById) {
+        User creator = createdById == null ? null : buildUser(createdById, UserRole.USER);
         return Document.builder()
                 .id(documentId)
                 .title("Doc")
                 .description("Desc")
                 .version(1)
                 .status(DocumentStatus.ACTIVE)
-                .createdBy(buildUser(createdById, UserRole.USER))
+                .createdBy(creator)
                 .deletedFlag(false)
                 .build();
     }
