@@ -32,11 +32,24 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   })
 }
 
+function readUserFromStorage(): UserSummary | null {
+  const raw = localStorage.getItem(USER_KEY)
+  if (!raw) {
+    return null
+  }
+  try {
+    return JSON.parse(raw) as UserSummary
+  } catch {
+    localStorage.removeItem(USER_KEY)
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
     refreshToken: localStorage.getItem(REFRESH_TOKEN_KEY),
-    user: localStorage.getItem(USER_KEY) ? JSON.parse(localStorage.getItem(USER_KEY) as string) : null,
+    user: readUserFromStorage(),
     initialized: false,
   }),
   getters: {

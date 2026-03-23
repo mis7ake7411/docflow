@@ -10,10 +10,12 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { registerAuthBridge } from '@/shared/api/auth-bridge'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const router = useRouter()
 
 registerAuthBridge({
   getAccessToken: () => authStore.accessToken,
@@ -26,6 +28,9 @@ registerAuthBridge({
 
 onMounted(async () => {
   await authStore.bootstrapAuth()
+  if (!authStore.isAuthenticated && router.currentRoute.value.path !== '/login') {
+    await router.replace('/login')
+  }
 })
 </script>
 
