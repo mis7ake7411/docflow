@@ -3,13 +3,16 @@ package com.docflow.activity.controller;
 import com.docflow.activity.dto.ActivityLogResponse;
 import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.response.ApiResponse;
+import com.docflow.common.response.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -32,8 +35,12 @@ public class ActivityController {
      */
     @Operation(summary = "Get recent activity logs")
     @GetMapping
-    public ApiResponse<List<ActivityLogResponse>> getActivities() {
-        List<ActivityLogResponse> responses = activityLogService.getRecentActivities().stream()
+    public ApiResponse<PagedResponse<ActivityLogResponse>> getActivities(
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size
+    ) {
+        Page<com.docflow.activity.entity.ActivityLog> results = activityLogService.getPaged(page, size);
+        List<ActivityLogResponse> responses = results.stream()
                 .map(activity -> ActivityLogResponse.builder()
                         .id(activity.getId())
                         .userId(activity.getUser() != null ? activity.getUser().getId() : null)
@@ -44,6 +51,12 @@ public class ActivityController {
                         .createdAt(activity.getCreatedAt())
                         .build())
                 .toList();
-        return ApiResponse.success(responses);
+        return ApiResponse.success(PagedResponse.<ActivityLogResponse>builder()
+                .items(responses)
+                .page(results.getNumber())
+                .size(results.getSize())
+                .totalElements(results.getTotalElements())
+                .totalPages(results.getTotalPages())
+                .build());
     }
 }

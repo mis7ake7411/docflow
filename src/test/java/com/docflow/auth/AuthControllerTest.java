@@ -1,6 +1,7 @@
 package com.docflow.auth;
 
 import com.docflow.auth.controller.AuthController;
+import com.docflow.test.TestSecurityConfig;
 import com.docflow.auth.dto.*;
 import com.docflow.auth.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;

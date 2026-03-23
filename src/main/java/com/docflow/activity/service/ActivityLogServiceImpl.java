@@ -8,6 +8,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +67,20 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     @Transactional(readOnly = true)
     public List<ActivityLog> getRecentActivities() {
         return activityLogRepository.findTop100ByOrderByCreatedAtDesc();
+    }
+
+    /**
+     * 取得分頁的活動紀錄。
+     *
+     * @param page 頁碼（0-based）
+     * @param size 每頁筆數
+     * @return 分頁活動紀錄
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ActivityLog> getPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"));
+        return activityLogRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
     /**

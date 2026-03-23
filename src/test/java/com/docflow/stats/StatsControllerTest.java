@@ -1,6 +1,7 @@
 package com.docflow.stats;
 
 import com.docflow.common.exception.GlobalExceptionHandler;
+import com.docflow.test.TestSecurityConfig;
 import com.docflow.stats.controller.StatsController;
 import com.docflow.stats.service.StatsService;
 import org.junit.jupiter.api.Test;

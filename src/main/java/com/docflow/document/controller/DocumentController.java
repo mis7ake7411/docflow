@@ -69,9 +69,10 @@ public class DocumentController {
     @GetMapping
     public ApiResponse<PagedResponse<DocumentResponse>> getAll(
             @RequestParam(name = "page", required = false, defaultValue = "0") int page,
-            @RequestParam(name = "size", required = false, defaultValue = "10") int size
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size,
+            @RequestParam(name = "folderId", required = false) Long folderId
     ) {
-        return ApiResponse.success(documentService.getPaged(page, size));
+        return ApiResponse.success(documentService.getPaged(page, size, folderId));
     }
 
     /**

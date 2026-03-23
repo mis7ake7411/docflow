@@ -1,6 +1,7 @@
 package com.docflow.folder;
 
 import com.docflow.common.exception.GlobalExceptionHandler;
+import com.docflow.test.TestSecurityConfig;
 import com.docflow.folder.controller.FolderController;
 import com.docflow.folder.dto.CreateFolderRequest;
 import com.docflow.folder.dto.FolderResponse;

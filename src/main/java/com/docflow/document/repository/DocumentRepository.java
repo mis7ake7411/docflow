@@ -26,6 +26,15 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     Page<Document> findAllByDeletedFlagFalse(Pageable pageable);
 
     /**
+     * 取得指定資料夾的分頁未刪除文件。
+     *
+     * @param folderId 資料夾編號
+     * @param pageable 分頁設定
+     * @return 分頁文件清單
+     */
+    Page<Document> findAllByDeletedFlagFalseAndFolder_Id(Long folderId, Pageable pageable);
+
+    /**
      * 依編號查詢未刪除文件。
      *
      * @param id 文件編號

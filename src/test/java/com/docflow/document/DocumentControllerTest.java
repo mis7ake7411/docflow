@@ -1,6 +1,7 @@
 package com.docflow.document;
 
 import com.docflow.common.exception.GlobalExceptionHandler;
+import com.docflow.test.TestSecurityConfig;
 import com.docflow.document.controller.DocumentController;
 import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;

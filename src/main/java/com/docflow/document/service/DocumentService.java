@@ -43,7 +43,7 @@ public interface DocumentService {
      * @param page 頁碼（0-based）
      * @param size 每頁筆數
      */
-    com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size);
+    com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size, Long folderId);
 
     /**
      * 取得指定文件明細。

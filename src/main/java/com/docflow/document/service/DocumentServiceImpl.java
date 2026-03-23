@@ -27,6 +27,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
@@ -127,10 +128,15 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     @Transactional(readOnly = true)
-    public com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size) {
-        log.debug("Loading paged document list: page={}, size={}", page, size);
-        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size));
-        Page<Document> results = documentRepository.findAllByDeletedFlagFalse(pageable);
+    public com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size, Long folderId) {
+        log.debug("Loading paged document list: page={}, size={}, folderId={}", page, size, folderId);
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Document> results;
+        if (folderId == null) {
+            results = documentRepository.findAllByDeletedFlagFalse(pageable);
+        } else {
+            results = documentRepository.findAllByDeletedFlagFalseAndFolder_Id(folderId, pageable);
+        }
         List<DocumentResponse> items = results.stream().map(this::toResponse).toList();
         return com.docflow.common.response.PagedResponse.<DocumentResponse>builder()
                 .items(items)

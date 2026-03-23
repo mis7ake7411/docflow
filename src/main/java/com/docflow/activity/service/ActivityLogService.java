@@ -1,6 +1,7 @@
 package com.docflow.activity.service;
 
 import com.docflow.activity.entity.ActivityLog;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.Map;
@@ -27,4 +28,13 @@ public interface ActivityLogService {
      * @return 依建立時間由新到舊排序的活動紀錄
      */
     List<ActivityLog> getRecentActivities();
+
+    /**
+     * 取得分頁的活動紀錄。
+     *
+     * @param page 頁碼（0-based）
+     * @param size 每頁筆數
+     * @return 分頁活動紀錄
+     */
+    Page<ActivityLog> getPaged(int page, int size);
 }

@@ -1,6 +1,8 @@
 package com.docflow.activity.repository;
 
 import com.docflow.activity.entity.ActivityLog;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,4 +18,12 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
      * @return 依建立時間由新到舊排序的活動紀錄
      */
     List<ActivityLog> findTop100ByOrderByCreatedAtDesc();
+
+    /**
+     * 取得分頁的活動紀錄。
+     *
+     * @param pageable 分頁設定
+     * @return 依建立時間由新到舊的分頁活動紀錄
+     */
+    Page<ActivityLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }
