@@ -22,6 +22,7 @@ test.describe('DocFlow Lite Demo Script', () => {
     const uploadFilePath = path.resolve(__dirname, '../fixtures/demo-upload.txt')
 
     await login(page)
+    await page.goto('/app/files')
 
     await test.step('4. 建立 folder', async () => {
       const folderCard = page.locator('.page-card').filter({
