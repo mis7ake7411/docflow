@@ -108,6 +108,30 @@ class DocumentServiceImplPermissionTest {
     }
 
     @Test
+    void userCannotUploadOwnerlessDocument() {
+        setCurrentUser(2L, UserRole.USER);
+        Document document = buildDocument(1L, null);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+
+        assertThatThrownBy(() -> documentService.upload(1L, buildMultipartFile()))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此文件");
+    }
+
+    @Test
+    void userCannotDeleteOwnerlessDocument() {
+        setCurrentUser(2L, UserRole.USER);
+        Document document = buildDocument(1L, null);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+
+        assertThatThrownBy(() -> documentService.delete(1L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此文件");
+    }
+
+    @Test
     void userCanUpdateOwnDocument() {
         setCurrentUser(1L, UserRole.USER);
         Document document = buildDocument(1L, 1L);
@@ -140,9 +164,39 @@ class DocumentServiceImplPermissionTest {
     }
 
     @Test
+    void adminCanUploadOwnerlessDocument() {
+        setCurrentUser(2L, UserRole.ADMIN);
+        Document document = buildDocument(1L, null);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+        Mockito.when(localFileStorageService.store(Mockito.any()))
+                .thenReturn(buildStoredFileResult());
+        Mockito.when(documentRepository.save(Mockito.any(Document.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = documentService.upload(1L, buildMultipartFile());
+
+        assertThat(response.getId()).isEqualTo(1L);
+    }
+
+    @Test
     void userCanDeleteOwnDocument() {
         setCurrentUser(1L, UserRole.USER);
         Document document = buildDocument(1L, 1L);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+        Mockito.when(documentRepository.save(Mockito.any(Document.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        documentService.delete(1L);
+
+        assertThat(document.isDeletedFlag()).isTrue();
+    }
+
+    @Test
+    void managerCanDeleteOwnerlessDocument() {
+        setCurrentUser(2L, UserRole.MANAGER);
+        Document document = buildDocument(1L, null);
         Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
                 .thenReturn(Optional.of(document));
         Mockito.when(documentRepository.save(Mockito.any(Document.class)))
