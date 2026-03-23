@@ -2,6 +2,7 @@ package com.docflow.document.service;
 
 import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
+import com.docflow.common.exception.ForbiddenException;
 import com.docflow.common.security.SecurityUtils;
 import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;
@@ -15,6 +16,7 @@ import com.docflow.document.service.DocumentCacheService;
 import com.docflow.folder.entity.Folder;
 import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
+import com.docflow.user.entity.UserRole;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -91,7 +93,9 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentResponse upload(Long id, MultipartFile file) {
         log.info("Uploading document file: documentId={}, originalFilename={}",
                 id, file != null ? file.getOriginalFilename() : null);
+        User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
+        assertCanModifyDocument(currentUser, document);
         StoredFileResult storedFile = localFileStorageService.store(file);
 
         document.setFileName(storedFile.getOriginalFileName());
@@ -104,7 +108,7 @@ public class DocumentServiceImpl implements DocumentService {
         log.info("Document file uploaded successfully: documentId={}, version={}", saved.getId(), saved.getVersion());
         DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
-        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPLOAD", java.util.Map.of(
+        activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "UPLOAD", java.util.Map.of(
                 "fileName", saved.getFileName(),
                 "storedFileName", saved.getStoredFileName(),
                 "version", saved.getVersion()
@@ -178,7 +182,9 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentResponse update(Long id, UpdateDocumentRequest request) {
         log.info("Updating document: documentId={}, title={}, folderId={}, status={}",
                 id, request.getTitle(), request.getFolderId(), request.getStatus());
+        User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
+        assertCanModifyDocument(currentUser, document);
         Folder folder = resolveFolder(request.getFolderId());
 
         document.setFolder(folder);
@@ -191,7 +197,7 @@ public class DocumentServiceImpl implements DocumentService {
         log.info("Document updated successfully: documentId={}, version={}", saved.getId(), saved.getVersion());
         DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
-        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", saved.getId(), "UPDATE", java.util.Map.of(
+        activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "UPDATE", java.util.Map.of(
                 "title", saved.getTitle(),
                 "status", saved.getStatus().name(),
                 "version", saved.getVersion()
@@ -208,12 +214,14 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional
     public void delete(Long id) {
         log.info("Deleting document: documentId={}", id);
+        User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
+        assertCanModifyDocument(currentUser, document);
         document.setDeletedFlag(true);
         documentRepository.save(document);
         log.info("Document soft-deleted successfully: documentId={}", document.getId());
         documentCacheService.evictDocumentDetail(id);
-        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", document.getId(), "DELETE", java.util.Map.of(
+        activityLogService.log(currentUser.getId(), "DOCUMENT", document.getId(), "DELETE", java.util.Map.of(
                 "title", document.getTitle()
         ));
     }
@@ -254,6 +262,18 @@ public class DocumentServiceImpl implements DocumentService {
         log.debug("Resolving active document: documentId={}", id);
         return documentRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Document not found"));
+    }
+
+    private void assertCanModifyDocument(User currentUser, Document document) {
+        if (currentUser.getRole() == UserRole.ADMIN
+                || currentUser.getRole() == UserRole.MANAGER) {
+            return;
+        }
+        if (currentUser.getRole() == UserRole.USER
+                && document.getCreatedBy().getId().equals(currentUser.getId())) {
+            return;
+        }
+        throw new ForbiddenException("無權限操作此文件");
     }
 
     /**
