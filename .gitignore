@@ -4,6 +4,7 @@ target/
 .env
 uploads/
 *.log
+.worktrees/
 
 frontend/dist
 frontend/node_modules/
