@@ -11,7 +11,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleForbiddenShouldReturn403() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
-        String message = "無權限操作此文件";
+        String message = "\u7121\u6b0a\u9650\u64cd\u4f5c\u6b64\u6587\u4ef6";
         ForbiddenException ex = new ForbiddenException(message);
 
         ResponseEntity<ApiResponse<Void>> response = handler.handleForbidden(ex);
