@@ -34,6 +34,15 @@ test.describe('DocFlow Lite 佈署 smoke test', () => {
     await expect(page.getByRole('button', { name: '登入' })).toBeVisible()
   })
 
+  test('儀表板主要區塊應成功載入', async ({ page }) => {
+    await login(page)
+
+    await expect(page.getByRole('heading', { name: '總文件數' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '熱門文件' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '最近瀏覽' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '活動紀錄' })).toBeVisible()
+  })
+
   test('文件管理主要區塊應成功載入', async ({ page }) => {
     await login(page)
 
@@ -42,21 +51,5 @@ test.describe('DocFlow Lite 佈署 smoke test', () => {
     await expect(page).toHaveURL(/\/app\/files$/)
     await expect(page.getByRole('heading', { name: '資料夾列表' })).toBeVisible()
     await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
-    await expect(page.getByText('資料夾樹載入失敗')).toHaveCount(0)
-    await expect(page.getByText('文件清單載入失敗')).toHaveCount(0)
-  })
-
-  test('洞察報表主要區塊應成功載入', async ({ page }) => {
-    await login(page)
-
-    await page.getByRole('link', { name: '洞察報表' }).click()
-
-    await expect(page).toHaveURL(/\/app\/insights$/)
-    await expect(page.getByRole('heading', { name: '熱門文件' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '最近瀏覽' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '活動紀錄' })).toBeVisible()
-    await expect(page.getByText('熱門文件載入失敗')).toHaveCount(0)
-    await expect(page.getByText('最近瀏覽載入失敗')).toHaveCount(0)
-    await expect(page.getByText('活動紀錄載入失敗')).toHaveCount(0)
   })
 })

@@ -2,7 +2,6 @@ import type { RouteRecordRaw } from 'vue-router'
 import DashboardPage from '@/pages/DashboardPage.vue'
 import DocumentDetailPage from '@/pages/DocumentDetailPage.vue'
 import FileManagementPage from '@/pages/FileManagementPage.vue'
-import InsightsPage from '@/pages/InsightsPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 
 export type AppRole = 'USER' | 'ADMIN'
@@ -80,17 +79,7 @@ export const appRoutes: RouteRecordRaw[] = [
   },
   {
     path: '/app/insights',
-    name: 'insights',
-    component: InsightsPage,
-    meta: {
-      title: '洞察報表',
-      subtitle: '檢視熱門文件、最近瀏覽與活動紀錄',
-      breadcrumb: ['首頁', '洞察報表'],
-      requiresAuth: true,
-      roles: ['USER', 'ADMIN'],
-      menu: true,
-      menuLabel: '洞察報表',
-    },
+    redirect: '/app',
   },
 ]
 

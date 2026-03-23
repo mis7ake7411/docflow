@@ -1,26 +1,26 @@
 <template>
-  <el-dialog :model-value="modelValue" :title="isEdit ? 'ç·¨è¼¯æ–‡ä»¶' : 'æ–°å¢æ–‡ä»¶'" width="520px" @close="emit('update:modelValue', false)">
+  <el-dialog :model-value="modelValue" :title="isEdit ? '½s¿è¤å¥ó' : '·s¼W¤å¥ó'" width="520px" @close="emit('update:modelValue', false)">
     <el-form label-position="top">
-      <el-form-item label="æ¨™é¡Œ">
-        <el-input v-model="form.title" placeholder="è«‹è¼¸å…¥æ–‡ä»¶æ¨™é¡Œ" />
+      <el-form-item label="¼ĞÃD">
+        <el-input v-model="form.title" placeholder="½Ğ¿é¤J¤å¥ó¼ĞÃD" />
       </el-form-item>
 
-      <el-form-item label="æè¿°">
-        <el-input v-model="form.description" type="textarea" :rows="4" placeholder="è«‹è¼¸å…¥æ–‡ä»¶æè¿°" />
+      <el-form-item label="´y­z">
+        <el-input v-model="form.description" type="textarea" :rows="4" placeholder="½Ğ¿é¤J¤å¥ó´y­z" />
       </el-form-item>
 
-      <el-form-item label="ç‹€æ…‹">
+      <el-form-item label="ª¬ºA">
         <el-select v-model="form.status" style="width: 100%">
-          <el-option label="è‰ç¨¿" value="DRAFT" />
-          <el-option label="å•Ÿç”¨" value="ACTIVE" />
-          <el-option label="å°å­˜" value="ARCHIVED" />
+          <el-option label="¯ó½Z" value="DRAFT" />
+          <el-option label="±Ò¥Î" value="ACTIVE" />
+          <el-option label="«Ê¦s" value="ARCHIVED" />
         </el-select>
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="emit('update:modelValue', false)">å–æ¶ˆ</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">å„²å­˜</el-button>
+      <el-button @click="emit('update:modelValue', false)">¨ú®ø</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">½T»{</el-button>
     </template>
   </el-dialog>
 </template>
@@ -75,7 +75,7 @@ const createMutation = useMutation({
   mutationFn: createDocument,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
-    ElMessage.success('æ–‡ä»¶å»ºç«‹æˆåŠŸ')
+    ElMessage.success('¤å¥ó¤w«Ø¥ß')
     emit('update:modelValue', false)
   },
 })
@@ -86,14 +86,14 @@ const updateMutation = useMutation({
   onSuccess: async (_, variables) => {
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
     await queryClient.invalidateQueries({ queryKey: ['documents', 'detail', variables.id] })
-    ElMessage.success('æ–‡ä»¶æ›´æ–°æˆåŠŸ')
+    ElMessage.success('¤å¥ó¤w§ó·s')
     emit('update:modelValue', false)
   },
 })
 
 async function handleSubmit() {
   if (!form.title.trim()) {
-    ElMessage.error('è«‹è¼¸å…¥æ–‡ä»¶æ¨™é¡Œ')
+    ElMessage.error('½Ğ¿é¤J¤å¥ó¼ĞÃD')
     return
   }
 
