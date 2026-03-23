@@ -265,14 +265,13 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     private void assertCanModifyDocument(User currentUser, Document document) {
-        if (document.getCreatedBy() == null || document.getCreatedBy().getId() == null) {
-            throw new ForbiddenException("無權限操作此文件");
-        }
         if (currentUser.getRole() == UserRole.ADMIN
                 || currentUser.getRole() == UserRole.MANAGER) {
             return;
         }
         if (currentUser.getRole() == UserRole.USER
+                && document.getCreatedBy() != null
+                && document.getCreatedBy().getId() != null
                 && document.getCreatedBy().getId().equals(currentUser.getId())) {
             return;
         }
@@ -339,7 +338,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .fileSize(document.getFileSize())
                 .version(document.getVersion())
                 .status(document.getStatus().name())
-                .createdBy(document.getCreatedBy().getId())
+                .createdBy(document.getCreatedBy() != null ? document.getCreatedBy().getId() : null)
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
                 .build();

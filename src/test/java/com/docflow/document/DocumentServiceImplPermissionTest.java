@@ -184,8 +184,24 @@ class DocumentServiceImplPermissionTest {
     }
 
     @Test
-    void adminCannotUpdateDocumentWithoutCreator() {
+    void adminCanUpdateDocumentWithoutCreator() {
         setCurrentUser(2L, UserRole.ADMIN);
+        Document document = buildDocument(1L, null);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(document));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(Mockito.anyLong()))
+                .thenReturn(Optional.of(buildFolder()));
+        Mockito.when(documentRepository.save(Mockito.any(Document.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest());
+
+        assertThat(response.getId()).isEqualTo(1L);
+    }
+
+    @Test
+    void userCannotUpdateDocumentWithoutCreator() {
+        setCurrentUser(2L, UserRole.USER);
         Document document = buildDocument(1L, null);
         Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
                 .thenReturn(Optional.of(document));
