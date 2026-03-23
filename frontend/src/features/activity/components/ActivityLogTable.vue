@@ -34,24 +34,50 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <div v-if="!isLoading && !error && totalElements" class="pagination">
+      <el-pagination
+        :current-page="currentPage"
+        :page-size="pageSize"
+        :page-sizes="pageSizes"
+        :total="totalElements"
+        layout="total, sizes, prev, pager, next"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { getActivities } from '@/features/activity/api'
 import { getActionLabel, getTargetTypeLabel } from '@/shared/utils/display'
 
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pageSizes = [10, 20, 50]
+
 const { data, isLoading, error } = useQuery({
-  queryKey: ['activities', 'recent'],
-  queryFn: getActivities,
+  queryKey: computed(() => ['activities', 'recent', currentPage.value, pageSize.value]),
+  queryFn: () => getActivities(currentPage.value - 1, pageSize.value),
 })
 
-const items = computed(() => data.value ?? [])
+const items = computed(() => data.value?.items ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-TW')
+}
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
 }
 </script>
 
@@ -75,11 +101,21 @@ function formatDate(value: string) {
   overflow-x: auto;
 }
 
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 @media (max-width: 768px) {
   .section-header {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+  }
+
+  .pagination {
+    justify-content: center;
   }
 }
 </style>

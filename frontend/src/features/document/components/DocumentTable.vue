@@ -16,9 +16,9 @@
     <div class="table-container">
       <el-skeleton v-if="isLoading" :rows="8" animated />
       <el-alert v-else-if="error" title="文件清單載入失敗" type="error" show-icon :closable="false" />
-      <el-empty v-else-if="!filteredDocuments.length" description="目前沒有文件" />
+      <el-empty v-else-if="!items.length" description="目前沒有文件" />
 
-      <el-table v-else :data="filteredDocuments" stripe>
+      <el-table v-else :data="items" stripe>
         <el-table-column prop="title" label="標題" min-width="220" />
         <el-table-column label="狀態" width="120">
           <template #default="scope">
@@ -46,13 +46,25 @@
       </el-table>
     </div>
 
+    <div v-if="!isLoading && !error && totalElements" class="pagination">
+      <el-pagination
+        :current-page="currentPage"
+        :page-size="pageSize"
+        :page-sizes="pageSizes"
+        :total="totalElements"
+        layout="total, sizes, prev, pager, next"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </div>
+
     <DocumentFormDialog v-model="createDialogVisible" :document="null" />
     <DocumentFormDialog v-model="editDialogVisible" :document="editingDocument" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
@@ -68,10 +80,13 @@ const queryClient = useQueryClient()
 const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editingDocument = ref<DocumentItem | null>(null)
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pageSizes = [10, 20, 50]
 
 const { data, isLoading, error, refetch } = useQuery({
-  queryKey: ['documents', 'list'],
-  queryFn: getDocuments,
+  queryKey: computed(() => ['documents', 'list', currentPage.value, pageSize.value, uiStore.selectedFolderId]),
+  queryFn: () => getDocuments(currentPage.value - 1, pageSize.value, uiStore.selectedFolderId),
 })
 
 const deleteMutation = useMutation({
@@ -82,13 +97,8 @@ const deleteMutation = useMutation({
   },
 })
 
-const filteredDocuments = computed(() => {
-  const documents = data.value ?? []
-  if (!uiStore.selectedFolderId) {
-    return documents
-  }
-  return documents.filter((document) => document.folderId === uiStore.selectedFolderId)
-})
+const items = computed(() => data.value?.items ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
 
 const sectionDescription = computed(() => {
   if (!uiStore.selectedFolderId) {
@@ -118,6 +128,22 @@ async function handleDelete(documentId: number) {
 function refreshTable() {
   void refetch()
 }
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+}
+
+watch(
+  () => uiStore.selectedFolderId,
+  () => {
+    currentPage.value = 1
+  },
+)
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-TW')
@@ -165,6 +191,12 @@ function formatDate(value: string) {
   padding: 20px 24px 24px;
 }
 
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 24px 24px;
+}
+
 @media (max-width: 768px) {
   .section-header {
     flex-direction: column;
@@ -178,6 +210,11 @@ function formatDate(value: string) {
 
   .table-container {
     padding: 16px;
+  }
+
+  .pagination {
+    justify-content: center;
+    padding: 0 16px 16px;
   }
 }
 </style>

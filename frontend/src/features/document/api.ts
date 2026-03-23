@@ -6,6 +6,14 @@ export interface ApiResponse<T> {
   message: string | null
 }
 
+export interface PagedResponse<T> {
+  items: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 export interface DocumentItem {
   id: number
   folderId: number | null
@@ -36,12 +44,31 @@ export interface UpdateDocumentRequest {
   status: string
 }
 
-export async function getDocuments(page = 0, size = 100): Promise<DocumentItem[]> {
-  const response = await apiClient.get<ApiResponse<any>>('/api/documents', { params: { page, size } })
-  // backend 回傳 PagedResponse 在 data.data
+export async function getDocuments(page = 0, size = 10, folderId?: number | null): Promise<PagedResponse<DocumentItem>> {
+  const response = await apiClient.get<ApiResponse<PagedResponse<DocumentItem>>>('/api/documents', {
+    params: {
+      page,
+      size,
+      folderId: folderId ?? undefined,
+    },
+  })
   const payload = response.data.data
-  if (!payload) return []
-  return payload.items ?? []
+  if (!payload) {
+    return {
+      items: [],
+      page: 0,
+      size,
+      totalElements: 0,
+      totalPages: 0,
+    }
+  }
+  return {
+    items: payload.items ?? [],
+    page: payload.page ?? 0,
+    size: payload.size ?? size,
+    totalElements: payload.totalElements ?? 0,
+    totalPages: payload.totalPages ?? 0,
+  }
 }
 
 export async function getDocumentDetail(id: number): Promise<DocumentItem> {
