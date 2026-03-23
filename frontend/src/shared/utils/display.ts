@@ -1,12 +1,14 @@
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: '草稿',
   ACTIVE: '啟用',
+  INACTIVE: '停用',
   ARCHIVED: '封存',
 }
 
 const ROLE_LABELS: Record<string, string> = {
   USER: '一般使用者',
   ADMIN: '管理員',
+  MANAGER: '主管',
 }
 
 const TARGET_TYPE_LABELS: Record<string, string> = {

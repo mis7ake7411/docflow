@@ -5,7 +5,7 @@
         <h3>資料夾列表</h3>
         <p class="muted">共 {{ totalCount }} 個資料夾</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">新增資料夾</el-button>
+      <el-button v-if="!isManager" type="primary" @click="openCreateDialog">新增資料夾</el-button>
     </div>
 
     <div class="folder-content">
@@ -25,7 +25,7 @@
         <template #default="{ data }">
           <div class="tree-node">
             <span class="node-name">{{ data.name }}</span>
-            <span class="tree-actions">
+            <span v-if="!isManager" class="tree-actions">
               <el-button text size="small" @click.stop="openEditDialog(data)">編輯</el-button>
               <el-popconfirm title="確定刪除這個資料夾？" @confirm="handleDelete(data.id)">
                 <template #reference>
@@ -54,8 +54,10 @@ import { ElMessage } from 'element-plus'
 import { deleteFolder, getFolderTree, type FolderTreeNode } from '@/features/folder/api'
 import FolderFormDialog from '@/features/folder/components/FolderFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
 
 const uiStore = useUiStore()
+const authStore = useAuthStore()
 const queryClient = useQueryClient()
 
 const createDialogVisible = ref(false)
@@ -82,6 +84,7 @@ const treeProps = {
 }
 
 const totalCount = computed(() => countNodes(treeData.value))
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 function handleNodeClick(node: FolderTreeNode) {
   uiStore.setSelectedFolderId(node.id)

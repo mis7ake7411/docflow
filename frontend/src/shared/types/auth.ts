@@ -4,4 +4,5 @@ export interface UserSummary {
   email: string
   role: string
   status: string
+  mustChangePassword: boolean
 }

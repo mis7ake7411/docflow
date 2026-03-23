@@ -8,8 +8,8 @@
             <p class="muted">檢視文件內容、編輯欄位與下載附件。</p>
           </div>
           <div v-if="document" class="action-group">
-            <el-button @click="openEditDialog">編輯</el-button>
-            <el-button type="primary" @click="uploadDialogVisible = true">上傳檔案</el-button>
+            <el-button v-if="!isManager" @click="openEditDialog">編輯</el-button>
+            <el-button v-if="!isManager" type="primary" @click="uploadDialogVisible = true">上傳檔案</el-button>
             <el-button type="success" :disabled="!document.storedFileName" @click="handleDownload">下載檔案</el-button>
           </div>
         </div>
@@ -36,8 +36,10 @@ import { downloadDocumentFile, getDocumentDetail } from '@/features/document/api
 import DocumentDetailCard from '@/features/document/components/DocumentDetailCard.vue'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
 import DocumentUploadDialog from '@/features/document/components/DocumentUploadDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const editDialogVisible = ref(false)
 const uploadDialogVisible = ref(false)
 
@@ -49,6 +51,7 @@ const { data, isLoading, error } = useQuery({
 })
 
 const document = computed(() => data.value ?? null)
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 function openEditDialog() {
   editDialogVisible.value = true

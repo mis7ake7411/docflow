@@ -14,18 +14,19 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">上傳</el-button>
+      <el-button type="primary" :loading="submitting" :disabled="isManager" @click="handleSubmit">上傳</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
 import { uploadDocumentFile } from '@/features/document/api'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -37,8 +38,10 @@ const emit = defineEmits<{
 }>()
 
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 const selectedFile = ref<File | null>(null)
 const submitting = ref(false)
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 const uploadMutation = useMutation({
   mutationFn: ({ id, file }: { id: number; file: File }) => uploadDocumentFile(id, file),

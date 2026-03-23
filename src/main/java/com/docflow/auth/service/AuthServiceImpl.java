@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * {@link AuthService} 的預設實作，負責使用者註冊、登入與權杖生命週期管理。
@@ -91,6 +92,11 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            log.warn("Login rejected due to inactive user: userId={}, username={}", user.getId(), user.getUsername());
+            throw new UnauthorizedException("User is inactive");
+        }
+
         log.info("Login successful: userId={}, username={}", user.getId(), user.getUsername());
         activityLogService.log(user.getId(), "USER", user.getId(), "LOGIN", java.util.Map.of(
                 "username", user.getUsername()
@@ -137,6 +143,26 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
         return toUserSummary(user);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        log.info("Changing password for userId={}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            log.warn("Password change rejected due to invalid current password: userId={}", userId);
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        activityLogService.log(userId, "USER", userId, "UPDATE", Map.of("changePassword", true));
     }
 
     /**
@@ -208,6 +234,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
+                .mustChangePassword(user.isMustChangePassword())
                 .build();
     }
 }

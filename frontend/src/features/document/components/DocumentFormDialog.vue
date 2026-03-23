@@ -20,17 +20,18 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">確認</el-button>
+      <el-button type="primary" :loading="submitting" :disabled="isManager" @click="handleSubmit">確認</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { reactive, watch, ref } from 'vue'
+import { computed, reactive, watch, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createDocument, updateDocument, type DocumentItem } from '@/features/document/api'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -42,8 +43,10 @@ const emit = defineEmits<{
 }>()
 
 const uiStore = useUiStore()
+const authStore = useAuthStore()
 const queryClient = useQueryClient()
 const submitting = ref(false)
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 const form = reactive({
   title: '',

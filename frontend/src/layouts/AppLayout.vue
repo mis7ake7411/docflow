@@ -94,6 +94,8 @@
         <slot />
       </section>
     </main>
+
+    <ChangePasswordDialog />
   </div>
 </template>
 
@@ -105,6 +107,7 @@ import { navigationRoutes } from '@/router/routes'
 import { hasAnyRole } from '@/shared/auth/permissions'
 import { PageHeader } from '@/shared/components'
 import { getRoleLabel } from '@/shared/utils/display'
+import ChangePasswordDialog from '@/features/auth/components/ChangePasswordDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 

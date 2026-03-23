@@ -24,7 +24,7 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">儲存</el-button>
+      <el-button type="primary" :loading="submitting" :disabled="isManager" @click="handleSubmit">儲存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -34,6 +34,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { createFolder, updateFolder, type FolderPayload, type FolderTreeNode } from '@/features/folder/api'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -46,8 +47,10 @@ const emit = defineEmits<{
 }>()
 
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 const submitting = ref(false)
 const isEdit = computed(() => Boolean(props.folder))
+const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 const form = reactive<FolderPayload>({
   name: '',

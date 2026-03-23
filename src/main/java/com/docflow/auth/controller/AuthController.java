@@ -2,6 +2,7 @@ package com.docflow.auth.controller;
 
 import com.docflow.auth.dto.AuthResponse;
 import com.docflow.auth.dto.AuthTokenResponse;
+import com.docflow.auth.dto.ChangePasswordRequest;
 import com.docflow.auth.dto.LoginRequest;
 import com.docflow.auth.dto.LogoutRequest;
 import com.docflow.auth.dto.RefreshRequest;
@@ -85,5 +86,13 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<UserSummaryResponse> me() {
         return ApiResponse.success(authService.getCurrentUser());
+    }
+
+    @Operation(summary = "Change password", description = "Update current user's password")
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ApiResponse.success(null, "Password updated successfully");
     }
 }
