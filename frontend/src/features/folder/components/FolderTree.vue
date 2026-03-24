@@ -26,8 +26,19 @@
           <div class="tree-node">
             <span class="node-name">{{ data.name }}</span>
             <span v-if="!isManager" class="tree-actions">
-              <el-button text size="small" @click.stop="openEditDialog(data)">編輯</el-button>
-              <el-popconfirm title="確定刪除這個資料夾？" @confirm="handleDelete(data.id)">
+              <el-tooltip v-if="!canEditFolder(data)" :content="PERMISSION_MESSAGES.folderHint">
+                <span>
+                  <el-button text size="small" disabled @click.stop>編輯</el-button>
+                </span>
+              </el-tooltip>
+              <el-button v-else text size="small" @click.stop="openEditDialog(data)">編輯</el-button>
+
+              <el-tooltip v-if="!canEditFolder(data)" :content="PERMISSION_MESSAGES.folderHint">
+                <span>
+                  <el-button text size="small" type="danger" disabled>刪除</el-button>
+                </span>
+              </el-tooltip>
+              <el-popconfirm v-else title="確定刪除這個資料夾？" @confirm="handleDelete(data.id)">
                 <template #reference>
                   <el-button text size="small" type="danger" @click.stop>刪除</el-button>
                 </template>
@@ -55,6 +66,8 @@ import { deleteFolder, getFolderTree, type FolderTreeNode } from '@/features/fol
 import FolderFormDialog from '@/features/folder/components/FolderFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
+import { canModifyResource, PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { isAxiosError } from 'axios'
 
 const uiStore = useUiStore()
 const authStore = useAuthStore()
@@ -75,6 +88,11 @@ const deleteMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
     ElMessage.success('資料夾已刪除')
   },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.folderForbidden)
+    }
+  },
 })
 
 const treeData = computed(() => data.value ?? [])
@@ -85,6 +103,7 @@ const treeProps = {
 
 const totalCount = computed(() => countNodes(treeData.value))
 const isManager = computed(() => authStore.userRole === 'MANAGER')
+const currentUser = computed(() => authStore.user)
 
 function handleNodeClick(node: FolderTreeNode) {
   uiStore.setSelectedFolderId(node.id)
@@ -101,6 +120,10 @@ function openCreateDialog() {
 function openEditDialog(folder: FolderTreeNode) {
   editingFolder.value = folder
   editDialogVisible.value = true
+}
+
+function canEditFolder(folder: FolderTreeNode) {
+  return canModifyResource(folder.createdBy, currentUser.value)
 }
 
 async function handleDelete(folderId: number) {

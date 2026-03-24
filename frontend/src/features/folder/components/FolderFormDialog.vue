@@ -35,6 +35,8 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { createFolder, updateFolder, type FolderPayload, type FolderTreeNode } from '@/features/folder/api'
 import { useAuthStore } from '@/stores/auth'
+import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { isAxiosError } from 'axios'
 
 const props = defineProps<{
   modelValue: boolean
@@ -91,6 +93,11 @@ const updateMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
     ElMessage.success('資料夾更新成功')
     emit('update:modelValue', false)
+  },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.folderForbidden)
+    }
   },
 })
 

@@ -10,8 +10,8 @@ test.describe('文件/資料夾權限 UI', () => {
 
   async function login(page: Page, username: string, password: string) {
     await page.goto('/login')
-    await page.getByRole('textbox', { name: 'Username' }).fill(username)
-    await page.getByRole('textbox', { name: 'Password' }).fill(password)
+    await page.getByRole('textbox', { name: '帳號' }).fill(username)
+    await page.getByRole('textbox', { name: '密碼' }).fill(password)
     await page.getByRole('button', { name: '登入' }).click()
     await expect(page).toHaveURL(/\/app/)
   }
@@ -24,4 +24,6 @@ test.describe('文件/資料夾權限 UI', () => {
 
     // TODO: 依實作選擇一筆非本人文件列，確認「編輯/上傳/刪除」為 disabled 並有提示；目前仍待補上選取非擁有者文件列的步驟
   })
+
+  // TODO: 選擇一個非本人資料夾節點，驗證「編輯/刪除」disabled + tooltip
 })
