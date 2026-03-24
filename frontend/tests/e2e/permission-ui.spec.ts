@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+﻿import { expect, test, type Page } from '@playwright/test'
 
 const ownerUser = process.env.DOCFLOW_E2E_OWNER_USERNAME
 const ownerPass = process.env.DOCFLOW_E2E_OWNER_PASSWORD
@@ -22,7 +22,6 @@ test.describe('文件/資料夾權限 UI', () => {
 
     await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
 
-    // TODO: 依實作選擇一筆非本人文件列，確認「編輯/上傳/刪除」為 disabled 並有提示
-    await expect(page.getByRole('button', { name: '編輯' }).first()).toBeDisabled()
+    // TODO: 依實作選擇一筆非本人文件列，確認「編輯/上傳/刪除」為 disabled 並有提示；目前仍待補上選取非擁有者文件列的步驟
   })
 })
