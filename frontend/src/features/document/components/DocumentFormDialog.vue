@@ -32,6 +32,8 @@ import { createDocument, updateDocument, type DocumentItem } from '@/features/do
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
+import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { isAxiosError } from 'axios'
 
 const props = defineProps<{
   modelValue: boolean
@@ -91,6 +93,11 @@ const updateMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: ['documents', 'detail', variables.id] })
     ElMessage.success('文件已更新')
     emit('update:modelValue', false)
+  },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.documentForbidden)
+    }
   },
 })
 

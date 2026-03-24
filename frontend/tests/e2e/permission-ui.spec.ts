@@ -51,5 +51,41 @@ test.describe('文件/資料夾權限 UI', () => {
     await expect(page.getByText('僅能修改自己建立的文件')).toBeVisible()
   })
 
+  test('他人文件詳情按鈕 disabled 並顯示提示', async ({ page }) => {
+    const title = `E2E-他人詳情-${Date.now()}`
+
+    await login(page, ownerUser!, ownerPass!)
+    await page.getByRole('link', { name: '文件管理' }).click()
+    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+
+    await page.getByRole('button', { name: '新增文件' }).click()
+    await page.getByRole('textbox', { name: '標題' }).fill(title)
+    await page.getByRole('textbox', { name: '描述' }).fill('e2e')
+    await page.getByRole('button', { name: '確認' }).click()
+    await expect(page.getByText('文件已建立')).toBeVisible()
+
+    await page.getByRole('button', { name: '登出' }).click()
+    await expect(page).toHaveURL(/\/login/)
+
+    await login(page, otherUser!, otherPass!)
+    await page.getByRole('link', { name: '文件管理' }).click()
+    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+
+    await page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: '查看' }).click()
+    await expect(page.getByRole('heading', { name: '文件明細' })).toBeVisible()
+
+    const editButton = page.getByRole('button', { name: '編輯' })
+    const uploadButton = page.getByRole('button', { name: '上傳檔案' })
+    const deleteButton = page.getByRole('button', { name: '刪除' })
+
+    await expect(editButton).toBeDisabled()
+    await expect(uploadButton).toBeDisabled()
+    await expect(deleteButton).toBeDisabled()
+
+    await editButton.hover()
+    await expect(page.getByText('僅能修改自己建立的文件', { exact: true })).toBeVisible()
+    await expect(page.getByText('你僅能修改自己建立的文件')).toBeVisible()
+  })
+
   // TODO: 選擇一個非本人資料夾節點，驗證「編輯/刪除」disabled + tooltip
 })
