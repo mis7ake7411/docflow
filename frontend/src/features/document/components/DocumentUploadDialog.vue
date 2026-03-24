@@ -27,6 +27,8 @@ import type { UploadFile } from 'element-plus'
 import { uploadDocumentFile } from '@/features/document/api'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useAuthStore } from '@/stores/auth'
+import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { isAxiosError } from 'axios'
 
 const props = defineProps<{
   modelValue: boolean
@@ -51,6 +53,11 @@ const uploadMutation = useMutation({
     ElMessage.success('檔案上傳成功')
     emit('update:modelValue', false)
     selectedFile.value = null
+  },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.documentForbidden)
+    }
   },
 })
 

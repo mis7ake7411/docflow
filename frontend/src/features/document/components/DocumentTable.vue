@@ -32,15 +32,35 @@
             {{ formatDate(scope.row.updatedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220">
+        <el-table-column label="操作" width="260">
           <template #default="scope">
             <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
-            <el-button v-if="!isManager" text @click="openEditDialog(scope.row)">編輯</el-button>
-            <el-popconfirm v-if="!isManager" title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
-              <template #reference>
-                <el-button text type="danger">刪除</el-button>
-              </template>
-            </el-popconfirm>
+            <template v-if="!isManager">
+              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
+                <span>
+                  <el-button text disabled>編輯</el-button>
+                </span>
+              </el-tooltip>
+              <el-button v-else text @click="openEditDialog(scope.row)">編輯</el-button>
+
+              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
+                <span>
+                  <el-button text disabled>上傳</el-button>
+                </span>
+              </el-tooltip>
+              <el-button v-else text @click="openUploadDialog(scope.row)">上傳</el-button>
+
+              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
+                <span>
+                  <el-button text type="danger" disabled>刪除</el-button>
+                </span>
+              </el-tooltip>
+              <el-popconfirm v-else title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
+                <template #reference>
+                  <el-button text type="danger">刪除</el-button>
+                </template>
+              </el-popconfirm>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -60,6 +80,12 @@
 
     <DocumentFormDialog v-model="createDialogVisible" :document="null" />
     <DocumentFormDialog v-model="editDialogVisible" :document="editingDocument" />
+    <DocumentUploadDialog
+      v-if="uploadingDocumentId"
+      v-model="uploadDialogVisible"
+      :document-id="uploadingDocumentId"
+      @update:modelValue="closeUploadDialog"
+    />
   </div>
 </template>
 
@@ -71,9 +97,12 @@ import { ElMessage } from 'element-plus'
 import { deleteDocument, getDocuments, type DocumentItem } from '@/features/document/api'
 import { getFolderTree, type FolderTreeNode } from '@/features/folder/api'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
+import DocumentUploadDialog from '@/features/document/components/DocumentUploadDialog.vue'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { getStatusLabel } from '@/shared/utils/display'
+import { canModifyResource, PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { isAxiosError } from 'axios'
 
 const router = useRouter()
 const uiStore = useUiStore()
@@ -83,6 +112,8 @@ const queryClient = useQueryClient()
 const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editingDocument = ref<DocumentItem | null>(null)
+const uploadDialogVisible = ref(false)
+const uploadingDocumentId = ref<number | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const pageSizes = [10, 20, 50]
@@ -103,11 +134,17 @@ const deleteMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
     ElMessage.success('文件已刪除')
   },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.documentForbidden)
+    }
+  },
 })
 
 const items = computed(() => data.value?.items ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
 const isManager = computed(() => authStore.userRole === 'MANAGER')
+const currentUser = computed(() => authStore.user)
 const selectedFolderName = computed(() => {
   const folderId = uiStore.selectedFolderId
   if (!folderId || !folderTree.value) return null
@@ -136,8 +173,22 @@ function openEditDialog(document: DocumentItem) {
   editDialogVisible.value = true
 }
 
+function openUploadDialog(document: DocumentItem) {
+  uploadingDocumentId.value = document.id
+  uploadDialogVisible.value = true
+}
+
+function closeUploadDialog() {
+  uploadDialogVisible.value = false
+  uploadingDocumentId.value = null
+}
+
 async function handleDelete(documentId: number) {
   await deleteMutation.mutateAsync(documentId)
+}
+
+function canEditDocument(document: DocumentItem) {
+  return canModifyResource(document.createdBy, currentUser.value)
 }
 
 function refreshTable() {
