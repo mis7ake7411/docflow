@@ -87,5 +87,36 @@ test.describe('文件/資料夾權限 UI', () => {
     await expect(page.getByText('你僅能修改自己建立的文件')).toBeVisible()
   })
 
-  // TODO: 選擇一個非本人資料夾節點，驗證「編輯/刪除」disabled + tooltip
+  test('他人資料夾按鈕 disabled 並顯示提示', async ({ page }) => {
+    const folderName = `E2E-他人資料夾-${Date.now()}`
+
+    await login(page, ownerUser!, ownerPass!)
+    await page.getByRole('link', { name: '文件管理' }).click()
+    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+
+    await page.getByRole('button', { name: '新增資料夾' }).click()
+    await page.getByRole('textbox', { name: '名稱' }).fill(folderName)
+    await page.getByRole('button', { name: '儲存' }).click()
+    await expect(page.getByText('資料夾建立成功')).toBeVisible()
+    await expect(page.locator('.node-name', { hasText: folderName }).first()).toBeVisible()
+
+    await page.getByRole('button', { name: '登出' }).click()
+    await expect(page).toHaveURL(/\/login/)
+
+    await login(page, otherUser!, otherPass!)
+    await page.getByRole('link', { name: '文件管理' }).click()
+    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+
+    const node = page.locator('.tree-node', {
+      has: page.locator('.node-name', { hasText: folderName }),
+    }).first()
+    const editButton = node.getByRole('button', { name: '編輯' })
+    const deleteButton = node.getByRole('button', { name: '刪除' })
+
+    await expect(editButton).toBeDisabled()
+    await expect(deleteButton).toBeDisabled()
+
+    await editButton.hover({ force: true })
+    await expect(page.getByText('僅能修改自己建立的資料夾', { exact: true })).toBeVisible()
+  })
 })
