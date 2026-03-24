@@ -1,4 +1,4 @@
-﻿import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const ownerUser = process.env.DOCFLOW_E2E_OWNER_USERNAME
 const ownerPass = process.env.DOCFLOW_E2E_OWNER_PASSWORD
