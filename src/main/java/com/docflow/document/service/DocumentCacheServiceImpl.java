@@ -264,6 +264,8 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
                 .createdBy(document.getCreatedBy().getId())
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
+                .accessLevel(null)
+                .sharedBy(null)
                 .build();
     }
 }

@@ -1,5 +1,10 @@
-﻿<template>
-  <el-dialog :model-value="modelValue" :title="isEdit ? '編輯文件' : '新增文件'" width="520px" @close="emit('update:modelValue', false)">
+<template>
+  <el-dialog
+    :model-value="modelValue"
+    :title="isEdit ? '編輯文件' : '新增文件'"
+    width="520px"
+    @close="emit('update:modelValue', false)"
+  >
     <el-form label-position="top">
       <el-form-item label="標題">
         <el-input v-model="form.title" placeholder="請輸入文件標題" />
@@ -20,18 +25,17 @@
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" :disabled="isManager" @click="handleSubmit">確認</el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">確認</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { createDocument, updateDocument, type DocumentItem } from '@/features/document/api'
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUiStore } from '@/stores/ui'
-import { useAuthStore } from '@/stores/auth'
 import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
 import { isAxiosError } from 'axios'
 
@@ -45,10 +49,8 @@ const emit = defineEmits<{
 }>()
 
 const uiStore = useUiStore()
-const authStore = useAuthStore()
 const queryClient = useQueryClient()
 const submitting = ref(false)
-const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 const form = reactive({
   title: '',
@@ -79,9 +81,14 @@ watch(
 const createMutation = useMutation({
   mutationFn: createDocument,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
+    await queryClient.invalidateQueries({ queryKey: ['documents'] })
     ElMessage.success('文件已建立')
     emit('update:modelValue', false)
+  },
+  onError: (error) => {
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.documentForbidden)
+    }
   },
 })
 
@@ -89,7 +96,7 @@ const updateMutation = useMutation({
   mutationFn: ({ id, payload }: { id: number; payload: { folderId: number | null; title: string; description: string; status: string } }) =>
     updateDocument(id, payload),
   onSuccess: async (_, variables) => {
-    await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
+    await queryClient.invalidateQueries({ queryKey: ['documents'] })
     await queryClient.invalidateQueries({ queryKey: ['documents', 'detail', variables.id] })
     ElMessage.success('文件已更新')
     emit('update:modelValue', false)
@@ -110,9 +117,9 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const payload = {
-      folderId: uiStore.selectedFolderId,
-      title: form.title,
-      description: form.description,
+      folderId: props.document ? props.document.folderId : uiStore.selectedFolderId,
+      title: form.title.trim(),
+      description: form.description.trim(),
       status: form.status,
     }
 
@@ -126,4 +133,3 @@ async function handleSubmit() {
   }
 }
 </script>
-

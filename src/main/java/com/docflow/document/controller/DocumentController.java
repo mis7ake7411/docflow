@@ -4,6 +4,8 @@ import com.docflow.common.response.ApiResponse;
 import com.docflow.common.response.PagedResponse;
 import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;
+import com.docflow.document.dto.DocumentShareItemResponse;
+import com.docflow.document.dto.ShareDocumentRequest;
 import com.docflow.document.dto.UpdateDocumentRequest;
 import com.docflow.document.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,7 +17,15 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -63,6 +73,7 @@ public class DocumentController {
      *
      * @param page 頁碼（0-based）
      * @param size 每頁筆數
+     * @param folderId 資料夾編號，可為空
      * @return 分頁文件清單
      */
     @Operation(summary = "List documents (paged)")
@@ -73,6 +84,22 @@ public class DocumentController {
             @RequestParam(name = "folderId", required = false) Long folderId
     ) {
         return ApiResponse.success(documentService.getPaged(page, size, folderId));
+    }
+
+    /**
+     * 取得目前使用者被分享的文件列表（分頁）。
+     *
+     * @param page 頁碼（0-based）
+     * @param size 每頁筆數
+     * @return 分頁文件清單
+     */
+    @Operation(summary = "Get documents shared with current user")
+    @GetMapping("/shared-with-me")
+    public ApiResponse<PagedResponse<DocumentResponse>> getSharedWithMe(
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size
+    ) {
+        return ApiResponse.success(documentService.getSharedWithMe(page, size));
     }
 
     /**
@@ -98,6 +125,62 @@ public class DocumentController {
     @PutMapping("/{id}")
     public ApiResponse<DocumentResponse> update(@PathVariable Long id, @Valid @RequestBody UpdateDocumentRequest request) {
         return ApiResponse.success(documentService.update(id, request), "Document updated successfully");
+    }
+
+    /**
+     * 取得指定文件的分享清單。
+     *
+     * @param id 文件編號
+     * @return 文件分享清單
+     */
+    @Operation(summary = "List document shares")
+    @GetMapping("/{id}/shares")
+    public ApiResponse<List<DocumentShareItemResponse>> getShares(@PathVariable Long id) {
+        return ApiResponse.success(documentService.getShares(id));
+    }
+
+    /**
+     * 新增文件分享對象與權限。
+     *
+     * @param id 文件編號
+     * @param request 分享請求資料
+     * @return 建立後的分享資料
+     */
+    @Operation(summary = "Share document with a user")
+    @PostMapping("/{id}/shares")
+    public ApiResponse<DocumentShareItemResponse> createShare(@PathVariable Long id,
+                                                              @Valid @RequestBody ShareDocumentRequest request) {
+        return ApiResponse.success(documentService.createShare(id, request), "Document shared successfully");
+    }
+
+    /**
+     * 更新指定分享紀錄的權限設定。
+     *
+     * @param id 文件編號
+     * @param shareId 分享紀錄編號
+     * @param request 分享請求資料
+     * @return 更新後的分享資料
+     */
+    @Operation(summary = "Update share permission")
+    @PutMapping("/{id}/shares/{shareId}")
+    public ApiResponse<DocumentShareItemResponse> updateShare(@PathVariable Long id,
+                                                              @PathVariable Long shareId,
+                                                              @Valid @RequestBody ShareDocumentRequest request) {
+        return ApiResponse.success(documentService.updateShare(id, shareId, request), "Document share updated successfully");
+    }
+
+    /**
+     * 刪除指定文件分享紀錄。
+     *
+     * @param id 文件編號
+     * @param shareId 分享紀錄編號
+     * @return 成功回應
+     */
+    @Operation(summary = "Delete share")
+    @DeleteMapping("/{id}/shares/{shareId}")
+    public ApiResponse<Void> deleteShare(@PathVariable Long id, @PathVariable Long shareId) {
+        documentService.deleteShare(id, shareId);
+        return ApiResponse.success(null, "Document share deleted successfully");
     }
 
     /**

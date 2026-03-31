@@ -1,122 +1,102 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import {
+  createShareByApiExpectStatus,
+  closeShareDialog,
+  createAccounts,
+  createDocumentAndOpenDetail,
+  createFolder,
+  createShareByUi,
+  login,
+  logout,
+} from './helpers/docflow'
 
-const ownerUser = process.env.DOCFLOW_E2E_OWNER_USERNAME
-const ownerPass = process.env.DOCFLOW_E2E_OWNER_PASSWORD
-const otherUser = process.env.DOCFLOW_E2E_OTHER_USERNAME
-const otherPass = process.env.DOCFLOW_E2E_OTHER_PASSWORD
+test.describe('文件與資料夾權限 UI', () => {
+  test('VIEW 分享文件在列表列顯示 disabled 的編輯、上傳、刪除', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
+    const title = `E2E-VIEW-列表-${suffix}`
 
-test.describe('文件/資料夾權限 UI', () => {
-  test.skip(!ownerUser || !ownerPass || !otherUser || !otherPass, '需提供兩組帳號')
+    await login(page, ownerUser, ownerPass)
+    await createDocumentAndOpenDetail(page, title, 'permission-e2e')
+    await createShareByUi(page, otherUser)
+    await closeShareDialog(page)
+    await logout(page)
 
-  async function login(page: Page, username: string, password: string) {
-    await page.goto('/login')
-    await page.getByRole('textbox', { name: '帳號' }).fill(username)
-    await page.getByRole('textbox', { name: '密碼' }).fill(password)
-    await page.getByRole('button', { name: '登入' }).click()
-    await expect(page).toHaveURL(/\/app/)
-  }
+    await login(page, otherUser, otherPass)
+    await page.getByRole('link', { name: '分享文件' }).click()
 
-  test('他人文件按鈕為 disabled 並顯示提示', async ({ page }) => {
-    const title = `E2E-他人文件-${Date.now()}`
-
-    await login(page, ownerUser!, ownerPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
-
-    await page.getByRole('button', { name: '新增文件' }).click()
-    await page.getByRole('textbox', { name: '標題' }).fill(title)
-    await page.getByRole('textbox', { name: '描述' }).fill('e2e')
-    await page.getByRole('button', { name: '確認' }).click()
-    await expect(page.getByText('文件已建立')).toBeVisible()
-    await expect(page.getByRole('cell', { name: title })).toBeVisible()
-
-    await page.getByRole('button', { name: '登出' }).click()
-    await expect(page).toHaveURL(/\/login/)
-
-    await login(page, otherUser!, otherPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
-
-    const row = page.getByRole('row', { name: new RegExp(title) })
-    const editButton = row.getByRole('button', { name: '編輯' })
-    const uploadButton = row.getByRole('button', { name: '上傳' })
-    const deleteButton = row.getByRole('button', { name: '刪除' })
-
-    await expect(editButton).toBeDisabled()
-    await expect(uploadButton).toBeDisabled()
-    await expect(deleteButton).toBeDisabled()
-
-    await editButton.hover()
-    await expect(page.getByText('僅能修改自己建立的文件')).toBeVisible()
+    const row = page.locator('.el-table__body-wrapper tbody tr').filter({ hasText: title }).first()
+    await expect(row).toBeVisible()
+    await expect(row.getByRole('button', { name: '編輯' })).toBeDisabled()
+    await expect(row.getByRole('button', { name: '上傳' })).toBeDisabled()
+    await expect(row.getByRole('button', { name: '刪除' })).toBeDisabled()
   })
 
-  test('他人文件詳情按鈕 disabled 並顯示提示', async ({ page }) => {
-    const title = `E2E-他人詳情-${Date.now()}`
+  test('VIEW 分享文件在詳情頁顯示 disabled 的編輯、上傳檔案、刪除', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
+    const title = `E2E-VIEW-詳情-${suffix}`
 
-    await login(page, ownerUser!, ownerPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+    await login(page, ownerUser, ownerPass)
+    await createDocumentAndOpenDetail(page, title, 'permission-e2e')
+    await createShareByUi(page, otherUser)
+    await closeShareDialog(page)
+    await logout(page)
 
-    await page.getByRole('button', { name: '新增文件' }).click()
-    await page.getByRole('textbox', { name: '標題' }).fill(title)
-    await page.getByRole('textbox', { name: '描述' }).fill('e2e')
-    await page.getByRole('button', { name: '確認' }).click()
-    await expect(page.getByText('文件已建立')).toBeVisible()
+    await login(page, otherUser, otherPass)
+    await page.getByRole('link', { name: '分享文件' }).click()
 
-    await page.getByRole('button', { name: '登出' }).click()
-    await expect(page).toHaveURL(/\/login/)
+    const row = page.locator('.el-table__body-wrapper tbody tr').filter({ hasText: title }).first()
+    await expect(row).toBeVisible()
+    await row.locator('button').first().click()
 
-    await login(page, otherUser!, otherPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
-
-    await page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: '查看' }).click()
-    await expect(page.getByRole('heading', { name: '文件明細' })).toBeVisible()
-
-    const editButton = page.getByRole('button', { name: '編輯' })
-    const uploadButton = page.getByRole('button', { name: '上傳檔案' })
-    const deleteButton = page.getByRole('button', { name: '刪除' })
-
-    await expect(editButton).toBeDisabled()
-    await expect(uploadButton).toBeDisabled()
-    await expect(deleteButton).toBeDisabled()
-
-    await editButton.hover()
-    await expect(page.getByText('僅能修改自己建立的文件', { exact: true })).toBeVisible()
-    await expect(page.getByText('你僅能修改自己建立的文件')).toBeVisible()
+    await expect(page.getByRole('button', { name: '編輯' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: '上傳檔案' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: '刪除' })).toBeDisabled()
   })
 
-  test('他人資料夾按鈕 disabled 並顯示提示', async ({ page }) => {
-    const folderName = `E2E-他人資料夾-${Date.now()}`
+  test('被分享者在詳情頁看不到分享按鈕，且直打分享 API 會被拒絕', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
+    const title = `E2E-分享管理-${suffix}`
 
-    await login(page, ownerUser!, ownerPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+    await login(page, ownerUser, ownerPass)
+    const documentId = await createDocumentAndOpenDetail(page, title, 'permission-e2e')
+    await createShareByUi(page, otherUser)
+    await closeShareDialog(page)
+    await logout(page)
 
-    await page.getByRole('button', { name: '新增資料夾' }).click()
-    await page.getByRole('textbox', { name: '名稱' }).fill(folderName)
-    await page.getByRole('button', { name: '儲存' }).click()
-    await expect(page.getByText('資料夾建立成功')).toBeVisible()
-    await expect(page.locator('.node-name', { hasText: folderName }).first()).toBeVisible()
+    await login(page, otherUser, otherPass)
+    await page.getByRole('link', { name: '分享文件' }).click()
 
-    await page.getByRole('button', { name: '登出' }).click()
-    await expect(page).toHaveURL(/\/login/)
+    const row = page.locator('.el-table__body-wrapper tbody tr').filter({ hasText: title }).first()
+    await expect(row).toBeVisible()
+    await row.locator('button').first().click()
 
-    await login(page, otherUser!, otherPass!)
-    await page.getByRole('link', { name: '文件管理' }).click()
-    await expect(page.getByRole('heading', { name: '文件列表' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '分享' })).toHaveCount(0)
+
+    const forbiddenStatus = await createShareByApiExpectStatus(page, documentId, 999999, 'VIEW')
+    await expect(forbiddenStatus).toBe(403)
+  })
+
+  test('其他使用者看到 owner 的資料夾時，編輯與刪除按鈕為 disabled', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
+    const folderName = `E2E-資料夾權限-${suffix}`
+
+    await login(page, ownerUser, ownerPass)
+    await createFolder(page, folderName)
+    await logout(page)
+
+    await login(page, otherUser, otherPass)
+    await page.getByRole('link', { name: '我的文件' }).click()
 
     const node = page.locator('.tree-node', {
       has: page.locator('.node-name', { hasText: folderName }),
     }).first()
-    const editButton = node.getByRole('button', { name: '編輯' })
-    const deleteButton = node.getByRole('button', { name: '刪除' })
 
-    await expect(editButton).toBeDisabled()
-    await expect(deleteButton).toBeDisabled()
-
-    await editButton.hover({ force: true })
-    await expect(page.getByText('僅能修改自己建立的資料夾', { exact: true })).toBeVisible()
+    await expect(node).toBeVisible()
+    await expect(node.getByRole('button', { name: '編輯' })).toBeDisabled()
+    await expect(node.getByRole('button', { name: '刪除' })).toBeDisabled()
   })
 })

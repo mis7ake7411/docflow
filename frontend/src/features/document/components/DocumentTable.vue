@@ -1,65 +1,73 @@
-﻿<template>
+<template>
   <div class="document-panel">
     <div class="section-header">
       <div>
-        <h3>文件列表</h3>
+        <h3>{{ headerTitle }}</h3>
         <p class="muted">{{ sectionDescription }}</p>
       </div>
 
       <div class="header-actions">
-        <button type="button" class="header-icon" @click="refreshTable">刷新</button>
-        <button type="button" class="header-icon">設定</button>
-        <el-button v-if="!isManager" type="primary" @click="openCreateDialog">新增文件</el-button>
+        <el-button v-if="showCreateButton" type="primary" @click="openCreateDialog">新增文件</el-button>
       </div>
     </div>
 
     <div class="table-container">
       <el-skeleton v-if="isLoading" :rows="8" animated />
       <el-alert v-else-if="error" title="文件清單載入失敗" type="error" show-icon :closable="false" />
-      <el-empty v-else-if="!items.length" description="目前沒有文件" />
+      <el-empty v-else-if="!items.length" :description="emptyDescription" />
 
       <el-table v-else :data="items" stripe>
         <el-table-column prop="title" label="標題" min-width="220" />
+        <el-table-column v-if="scope === 'shared'" label="權限" width="120">
+          <template #default="scopeSlot">
+            {{ getAccessLevelLabel(scopeSlot.row.accessLevel) }}
+          </template>
+        </el-table-column>
+        <el-table-column v-if="scope === 'shared'" label="分享者" min-width="160">
+          <template #default="scopeSlot">
+            {{ scopeSlot.row.sharedBy || '未知' }}
+          </template>
+        </el-table-column>
         <el-table-column label="狀態" width="120">
-          <template #default="scope">
-            {{ getStatusLabel(scope.row.status) }}
+          <template #default="scopeSlot">
+            {{ getStatusLabel(scopeSlot.row.status) }}
           </template>
         </el-table-column>
         <el-table-column prop="version" label="版本" width="90" />
         <el-table-column prop="fileName" label="檔名" min-width="160" />
         <el-table-column label="更新時間" min-width="180">
-          <template #default="scope">
-            {{ formatDate(scope.row.updatedAt) }}
+          <template #default="scopeSlot">
+            {{ formatDate(scopeSlot.row.updatedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260">
-          <template #default="scope">
-            <el-button text type="primary" @click="openDetail(scope.row.id)">查看</el-button>
-            <template v-if="!isManager">
-              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
-                <span>
-                  <el-button text disabled>編輯</el-button>
-                </span>
-              </el-tooltip>
-              <el-button v-else text @click="openEditDialog(scope.row)">編輯</el-button>
+        <el-table-column label="操作" width="280">
+          <template #default="scopeSlot">
+            <el-button text type="primary" @click="openDetail(scopeSlot.row.id)">查看</el-button>
 
-              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
-                <span>
-                  <el-button text disabled>上傳</el-button>
-                </span>
+            <template v-if="canEditDocument(scopeSlot.row, currentUser)">
+              <el-button text @click="openEditDialog(scopeSlot.row)">編輯</el-button>
+              <el-button text @click="openUploadDialog(scopeSlot.row)">上傳</el-button>
+            </template>
+            <template v-else>
+              <el-tooltip :content="getDocumentAccessHint(scopeSlot.row, currentUser)">
+                <span><el-button text disabled>編輯</el-button></span>
               </el-tooltip>
-              <el-button v-else text @click="openUploadDialog(scope.row)">上傳</el-button>
+              <el-tooltip :content="getDocumentAccessHint(scopeSlot.row, currentUser)">
+                <span><el-button text disabled>上傳</el-button></span>
+              </el-tooltip>
+            </template>
 
-              <el-tooltip v-if="!canEditDocument(scope.row)" :content="PERMISSION_MESSAGES.documentHint">
-                <span>
-                  <el-button text type="danger" disabled>刪除</el-button>
-                </span>
-              </el-tooltip>
-              <el-popconfirm v-else title="確定刪除這份文件？" @confirm="handleDelete(scope.row.id)">
+            <template v-if="canDeleteDocument(scopeSlot.row, currentUser)">
+              <el-popconfirm title="確定刪除這份文件？" @confirm="handleDelete(scopeSlot.row.id)">
                 <template #reference>
                   <el-button text type="danger">刪除</el-button>
                 </template>
               </el-popconfirm>
+            </template>
+            <template v-else>
+              <el-tooltip :content="PERMISSION_MESSAGES.documentForbidden">
+                <span><el-button text type="danger" disabled>刪除</el-button></span>
+              </el-tooltip>
             </template>
           </template>
         </el-table-column>
@@ -94,19 +102,36 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import { deleteDocument, getDocuments, type DocumentItem } from '@/features/document/api'
-import { getFolderTree, type FolderTreeNode } from '@/features/folder/api'
+import { isAxiosError } from 'axios'
+import { deleteDocument, getDocuments, getSharedDocuments, type DocumentItem } from '@/features/document/api'
 import DocumentFormDialog from '@/features/document/components/DocumentFormDialog.vue'
 import DocumentUploadDialog from '@/features/document/components/DocumentUploadDialog.vue'
-import { useUiStore } from '@/stores/ui'
+import { getFolderTree, type FolderTreeNode } from '@/features/folder/api'
+import { getAccessLevelLabel, getStatusLabel } from '@/shared/utils/display'
+import {
+  canDeleteDocument,
+  canEditDocument,
+  getDocumentAccessHint,
+  PERMISSION_MESSAGES,
+} from '@/shared/utils/permission'
 import { useAuthStore } from '@/stores/auth'
-import { getStatusLabel } from '@/shared/utils/display'
-import { canModifyResource, PERMISSION_MESSAGES } from '@/shared/utils/permission'
-import { isAxiosError } from 'axios'
+import { useUiStore } from '@/stores/ui'
+
+const props = withDefaults(defineProps<{
+  scope?: 'mine' | 'shared'
+  headerTitle?: string
+  headerDescription?: string
+  showCreateButton?: boolean
+}>(), {
+  scope: 'mine',
+  headerTitle: '文件列表',
+  headerDescription: '',
+  showCreateButton: true,
+})
 
 const router = useRouter()
-const uiStore = useUiStore()
 const authStore = useAuthStore()
+const uiStore = useUiStore()
 const queryClient = useQueryClient()
 
 const createDialogVisible = ref(false)
@@ -118,24 +143,37 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const pageSizes = [10, 20, 50]
 
-const { data, isLoading, error, refetch } = useQuery({
-  queryKey: computed(() => ['documents', 'list', currentPage.value, pageSize.value, uiStore.selectedFolderId]),
-  queryFn: () => getDocuments(currentPage.value - 1, pageSize.value, uiStore.selectedFolderId),
+const currentUser = computed(() => authStore.user)
+
+const query = useQuery({
+  queryKey: computed(() => [
+    'documents',
+    props.scope,
+    currentPage.value,
+    pageSize.value,
+    props.scope === 'mine' ? uiStore.selectedFolderId : null,
+  ]),
+  queryFn: () => props.scope === 'shared'
+    ? getSharedDocuments(currentPage.value - 1, pageSize.value)
+    : getDocuments(currentPage.value - 1, pageSize.value, uiStore.selectedFolderId),
 })
+
+const { data, isLoading, error } = query
 
 const { data: folderTree } = useQuery({
   queryKey: ['folders', 'tree'],
   queryFn: getFolderTree,
+  enabled: computed(() => props.scope === 'mine'),
 })
 
 const deleteMutation = useMutation({
   mutationFn: deleteDocument,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ['documents', 'list'] })
+    await queryClient.invalidateQueries({ queryKey: ['documents'] })
     ElMessage.success('文件已刪除')
   },
-  onError: (error) => {
-    if (isAxiosError(error) && error.response?.status === 403) {
+  onError: (mutationError) => {
+    if (isAxiosError(mutationError) && mutationError.response?.status === 403) {
       ElMessage.error(PERMISSION_MESSAGES.documentForbidden)
     }
   },
@@ -143,21 +181,21 @@ const deleteMutation = useMutation({
 
 const items = computed(() => data.value?.items ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
-const isManager = computed(() => authStore.userRole === 'MANAGER')
-const currentUser = computed(() => authStore.user)
 const selectedFolderName = computed(() => {
   const folderId = uiStore.selectedFolderId
-  if (!folderId || !folderTree.value) return null
+  if (!folderId || props.scope !== 'mine' || !folderTree.value) return null
   return findFolderName(folderTree.value, folderId)
 })
 
 const sectionDescription = computed(() => {
-  if (!uiStore.selectedFolderId) {
-    return '顯示全部文件'
-  }
+  if (props.headerDescription) return props.headerDescription
+  if (props.scope === 'shared') return '顯示其他人分享給你的文件'
+  if (!uiStore.selectedFolderId) return '顯示你建立的文件'
   const name = selectedFolderName.value ?? uiStore.selectedFolderId
   return `目前顯示資料夾 #${name} 的文件`
 })
+
+const emptyDescription = computed(() => props.scope === 'shared' ? '目前沒有分享給你的文件' : '目前沒有文件')
 
 function openDetail(documentId: number) {
   uiStore.setSelectedDocumentId(documentId)
@@ -187,14 +225,6 @@ async function handleDelete(documentId: number) {
   await deleteMutation.mutateAsync(documentId)
 }
 
-function canEditDocument(document: DocumentItem) {
-  return canModifyResource(document.createdBy, currentUser.value)
-}
-
-function refreshTable() {
-  void refetch()
-}
-
 function handlePageChange(page: number) {
   currentPage.value = page
 }
@@ -207,7 +237,9 @@ function handleSizeChange(size: number) {
 watch(
   () => uiStore.selectedFolderId,
   () => {
-    currentPage.value = 1
+    if (props.scope === 'mine') {
+      currentPage.value = 1
+    }
   },
 )
 
@@ -217,9 +249,7 @@ function formatDate(value: string) {
 
 function findFolderName(nodes: FolderTreeNode[], targetId: number): string | null {
   for (const node of nodes) {
-    if (node.id === targetId) {
-      return node.name
-    }
+    if (node.id === targetId) return node.name
     if (node.children?.length) {
       const match = findFolderName(node.children, targetId)
       if (match) return match
@@ -297,4 +327,3 @@ function findFolderName(nodes: FolderTreeNode[], targetId: number): string | nul
   }
 }
 </style>
-

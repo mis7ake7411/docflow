@@ -51,6 +51,28 @@ public class UserController {
         return ApiResponse.success(statsService.getRecentViews(userId));
     }
 
+    /**
+     * 取得可分享對象候選清單。
+     *
+     * @param keyword 搜尋關鍵字，可為空
+     * @return 分享候選使用者清單
+     */
+    @Operation(summary = "Get share candidates")
+    @GetMapping("/share-candidates")
+    public ApiResponse<List<UserListItemResponse>> getShareCandidates(
+            @RequestParam(name = "keyword", required = false) String keyword
+    ) {
+        return ApiResponse.success(userService.getShareCandidates(keyword));
+    }
+
+    /**
+     * 分頁取得使用者列表。
+     *
+     * @param page 頁碼（從 0 開始）
+     * @param size 每頁筆數
+     * @param keyword 搜尋關鍵字，可為空
+     * @return 分頁使用者資料
+     */
     @Operation(summary = "List users (paged)")
     @GetMapping
     public ApiResponse<PagedResponse<UserListItemResponse>> listUsers(
@@ -61,12 +83,25 @@ public class UserController {
         return ApiResponse.success(userService.getUsers(page, size, keyword));
     }
 
+    /**
+     * 建立新使用者。
+     *
+     * @param request 建立使用者請求資料
+     * @return 建立完成的使用者資料與臨時密碼
+     */
     @Operation(summary = "Create user")
     @PostMapping
     public ApiResponse<CreateUserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         return ApiResponse.success(userService.createUser(request), "User created successfully");
     }
 
+    /**
+     * 更新指定使用者的角色與狀態。
+     *
+     * @param id 使用者編號
+     * @param request 更新使用者請求資料
+     * @return 更新後的使用者資料
+     */
     @Operation(summary = "Update user role and status")
     @PutMapping("/{id}")
     public ApiResponse<UserListItemResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {

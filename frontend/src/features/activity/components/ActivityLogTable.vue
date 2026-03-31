@@ -24,7 +24,7 @@
         <el-table-column prop="targetId" label="目標編號" width="120" />
         <el-table-column label="內容" min-width="260">
           <template #default="scope">
-            <span class="detail-text">{{ scope.row.detailJson || '—' }}</span>
+            <span class="detail-text">{{ formatActivityDetail(scope.row.action, scope.row.detailJson) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="建立時間" min-width="180">
@@ -53,7 +53,7 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { getActivities } from '@/features/activity/api'
-import { getActionLabel, getTargetTypeLabel } from '@/shared/utils/display'
+import { formatActivityDetail, getActionLabel, getTargetTypeLabel } from '@/shared/utils/display'
 
 const currentPage = ref(1)
 const pageSize = ref(10)

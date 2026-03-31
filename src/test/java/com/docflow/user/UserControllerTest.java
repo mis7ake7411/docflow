@@ -1,6 +1,7 @@
 package com.docflow.user;
 
 import com.docflow.common.exception.GlobalExceptionHandler;
+import com.docflow.common.response.PagedResponse;
 import com.docflow.common.security.DocflowUserPrincipal;
 import com.docflow.stats.service.StatsService;
 import com.docflow.test.TestSecurityConfig;
@@ -13,7 +14,6 @@ import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
 import com.docflow.user.service.UserService;
-import com.docflow.common.response.PagedResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +21,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -63,12 +63,29 @@ class UserControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
         );
-        Mockito.when(statsService.getRecentViews(Mockito.anyLong()))
-                .thenReturn(Collections.emptyList());
+        Mockito.when(statsService.getRecentViews(Mockito.anyLong())).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/users/me/recent-views"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void getShareCandidatesShouldReturnList() throws Exception {
+        UserListItemResponse candidate = UserListItemResponse.builder()
+                .id(2L)
+                .username("bob")
+                .email("bob@example.com")
+                .role("USER")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
+        Mockito.when(userService.getShareCandidates("bob")).thenReturn(List.of(candidate));
+
+        mockMvc.perform(get("/api/users/share-candidates?keyword=bob"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].username").value("bob"));
     }
 
     @Test

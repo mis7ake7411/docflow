@@ -4,12 +4,8 @@
       <section class="dashboard-panel">
         <div class="panel-header">
           <div>
-            <h2>文件工作區</h2>
-            <p class="muted">以後台清單版型集中處理資料夾與文件。</p>
-          </div>
-          <div class="panel-tools">
-            <button type="button" class="tool-button">刷新</button>
-            <button type="button" class="tool-button">設定</button>
+            <h2>我的文件</h2>
+            <p class="muted">以樹狀資料夾搭配清單，集中管理你建立與擁有的文件。</p>
           </div>
         </div>
 
@@ -19,7 +15,11 @@
           </div>
 
           <div class="main-column">
-            <DocumentTable />
+            <DocumentTable
+              scope="mine"
+              header-title="我的文件"
+              header-description="顯示你建立或擁有的文件"
+            />
           </div>
         </div>
       </section>

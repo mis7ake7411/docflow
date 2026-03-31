@@ -40,6 +40,15 @@ export interface CreateUserResponse {
   tempPassword: string
 }
 
+export async function getShareCandidates(keyword?: string): Promise<UserListItem[]> {
+  const response = await apiClient.get<ApiResponse<UserListItem[]>>('/api/users/share-candidates', {
+    params: {
+      keyword: keyword || undefined,
+    },
+  })
+  return response.data.data ?? []
+}
+
 export async function getUsers(page = 0, size = 10, keyword?: string): Promise<PagedResponse<UserListItem>> {
   const response = await apiClient.get<ApiResponse<PagedResponse<UserListItem>>>('/api/users', {
     params: {

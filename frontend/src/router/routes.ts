@@ -4,6 +4,7 @@ import DocumentDetailPage from '@/pages/DocumentDetailPage.vue'
 import FileManagementPage from '@/pages/FileManagementPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
+import SharedDocumentsPage from '@/pages/SharedDocumentsPage.vue'
 import UserManagementPage from '@/pages/UserManagementPage.vue'
 
 export type AppRole = 'USER' | 'ADMIN' | 'MANAGER'
@@ -69,13 +70,27 @@ export const appRoutes: RouteRecordRaw[] = [
     name: 'file-management',
     component: FileManagementPage,
     meta: {
-      title: '文件管理',
-      subtitle: '集中管理資料夾與文件內容',
-      breadcrumb: ['首頁', '文件管理'],
+      title: '我的文件',
+      subtitle: '集中管理你建立與擁有的文件',
+      breadcrumb: ['首頁', '我的文件'],
       requiresAuth: true,
       roles: ['USER', 'ADMIN', 'MANAGER'],
       menu: true,
-      menuLabel: '文件管理',
+      menuLabel: '我的文件',
+    },
+  },
+  {
+    path: '/app/shared-documents',
+    name: 'shared-documents',
+    component: SharedDocumentsPage,
+    meta: {
+      title: '分享給我的文件',
+      subtitle: '查看其他人分享給你的文件',
+      breadcrumb: ['首頁', '分享給我的文件'],
+      requiresAuth: true,
+      roles: ['USER', 'ADMIN', 'MANAGER'],
+      menu: true,
+      menuLabel: '分享文件',
     },
   },
   {
@@ -84,7 +99,7 @@ export const appRoutes: RouteRecordRaw[] = [
     component: DocumentDetailPage,
     meta: {
       title: '文件詳情',
-      subtitle: '查看文件內容、上傳附件與下載檔案',
+      subtitle: '查看文件內容、上傳附件、下載檔案與管理分享',
       breadcrumb: ['首頁', '文件詳情'],
       requiresAuth: true,
       roles: ['USER', 'ADMIN', 'MANAGER'],

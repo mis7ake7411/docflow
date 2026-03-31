@@ -1,6 +1,7 @@
 package com.docflow.document.repository;
 
 import com.docflow.document.entity.Document;
+import com.docflow.document.entity.DocumentShare;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,4 +42,8 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
      * @return 文件資料
      */
     Optional<Document> findByIdAndDeletedFlagFalse(Long id);
+
+    Page<Document> findAllByDeletedFlagFalseAndCreatedBy_Id(Long userId, Pageable pageable);
+
+    Page<Document> findAllByDeletedFlagFalseAndCreatedBy_IdAndFolder_Id(Long userId, Long folderId, Pageable pageable);
 }

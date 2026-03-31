@@ -1,6 +1,7 @@
 package com.docflow.user;
 
 import com.docflow.common.exception.BadRequestException;
+import com.docflow.common.security.DocflowUserPrincipal;
 import com.docflow.user.dto.CreateUserRequest;
 import com.docflow.user.dto.UpdateUserRequest;
 import com.docflow.user.dto.UserListItemResponse;
@@ -9,13 +10,17 @@ import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
 import com.docflow.user.repository.UserRepository;
 import com.docflow.user.service.UserServiceImpl;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +38,11 @@ class UserServiceImplTest {
         userRepository = Mockito.mock(UserRepository.class);
         passwordEncoder = Mockito.mock(PasswordEncoder.class);
         userService = new UserServiceImpl(userRepository, passwordEncoder);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -85,5 +95,36 @@ class UserServiceImplTest {
 
         assertThat(response.getRole()).isEqualTo("MANAGER");
         assertThat(response.getStatus()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void getShareCandidatesShouldExcludeCurrentUserAndFilterInactiveUsers() {
+        User currentUser = User.builder()
+                .id(1L)
+                .username("alice")
+                .email("alice@example.com")
+                .passwordHash("hash")
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        DocflowUserPrincipal principal = new DocflowUserPrincipal(currentUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+
+        Mockito.when(userRepository.findShareCandidates(UserStatus.ACTIVE, 1L, "bob"))
+                .thenReturn(List.of(User.builder()
+                        .id(2L)
+                        .username("bob")
+                        .email("bob@example.com")
+                        .passwordHash("hash")
+                        .role(UserRole.USER)
+                        .status(UserStatus.ACTIVE)
+                        .build()));
+
+        List<UserListItemResponse> response = userService.getShareCandidates("bob");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getUsername()).isEqualTo("bob");
     }
 }

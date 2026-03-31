@@ -10,6 +10,7 @@ import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
 import com.docflow.user.entity.UserStatus;
 import com.docflow.user.repository.UserRepository;
+import com.docflow.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -132,6 +134,17 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(user);
         log.info("User updated successfully: userId={}, username={}", saved.getId(), saved.getUsername());
         return toListItem(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserListItemResponse> getShareCandidates(String keyword) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.debug("Loading share candidates: currentUserId={}", currentUserId);
+        String normalizedKeyword = keyword == null ? null : keyword.trim();
+        return userRepository.findShareCandidates(UserStatus.ACTIVE, currentUserId, normalizedKeyword).stream()
+                .map(this::toListItem)
+                .toList();
     }
 
     /**

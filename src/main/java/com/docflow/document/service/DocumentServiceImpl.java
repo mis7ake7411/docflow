@@ -3,19 +3,27 @@ package com.docflow.document.service;
 import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.exception.ForbiddenException;
+import com.docflow.common.response.PagedResponse;
 import com.docflow.common.security.SecurityUtils;
 import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;
+import com.docflow.document.dto.DocumentShareItemResponse;
+import com.docflow.document.dto.ShareDocumentRequest;
 import com.docflow.document.dto.UpdateDocumentRequest;
 import com.docflow.document.entity.Document;
+import com.docflow.document.entity.DocumentAccessLevel;
+import com.docflow.document.entity.DocumentShare;
+import com.docflow.document.entity.DocumentSharePermission;
 import com.docflow.document.entity.DocumentStatus;
 import com.docflow.document.repository.DocumentRepository;
+import com.docflow.document.repository.DocumentShareRepository;
 import com.docflow.document.storage.LocalFileStorageService;
 import com.docflow.document.storage.StoredFileResult;
 import com.docflow.folder.entity.Folder;
 import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
 import com.docflow.user.entity.UserRole;
+import com.docflow.user.entity.UserStatus;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
@@ -39,6 +48,7 @@ import java.util.List;
 public class DocumentServiceImpl implements DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final DocumentShareRepository documentShareRepository;
     private final FolderRepository folderRepository;
     private final UserRepository userRepository;
     private final LocalFileStorageService localFileStorageService;
@@ -59,7 +69,7 @@ public class DocumentServiceImpl implements DocumentService {
         User currentUser = getCurrentUser();
         Folder folder = resolveFolder(request.getFolderId());
 
-        Document document = Document.builder()
+        Document document = documentRepository.save(Document.builder()
                 .folder(folder)
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -67,17 +77,14 @@ public class DocumentServiceImpl implements DocumentService {
                 .status(parseStatus(request.getStatus()))
                 .createdBy(currentUser)
                 .deletedFlag(false)
-                .build();
+                .build());
 
-        Document saved = documentRepository.save(document);
-        log.info("Document created successfully: documentId={}, createdBy={}", saved.getId(), currentUser.getId());
-        DocumentResponse response = toResponse(saved);
-        documentCacheService.evictDocumentDetail(response.getId());
-        activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "CREATE", java.util.Map.of(
-                "title", saved.getTitle(),
-                "status", saved.getStatus().name()
+        documentCacheService.evictDocumentDetail(document.getId());
+        activityLogService.log(currentUser.getId(), "DOCUMENT", document.getId(), "CREATE", java.util.Map.of(
+                "title", document.getTitle(),
+                "status", document.getStatus().name()
         ));
-        return response;
+        return toAccessibleResponse(document, currentUser, null);
     }
 
     /**
@@ -94,7 +101,7 @@ public class DocumentServiceImpl implements DocumentService {
                 id, file != null ? file.getOriginalFilename() : null);
         User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
-        assertCanModifyDocument(currentUser, document);
+        AccessContext accessContext = requireEditAccess(document, currentUser);
         StoredFileResult storedFile = localFileStorageService.store(file);
 
         document.setFileName(storedFile.getOriginalFileName());
@@ -112,7 +119,7 @@ public class DocumentServiceImpl implements DocumentService {
                 "storedFileName", saved.getStoredFileName(),
                 "version", saved.getVersion()
         ));
-        return response;
+        return toAccessibleResponse(saved, currentUser, accessContext);
     }
 
     /**
@@ -123,26 +130,45 @@ public class DocumentServiceImpl implements DocumentService {
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getAll() {
-        log.debug("Loading document list");
-        return documentRepository.findAllByDeletedFlagFalseOrderByCreatedAtDesc().stream()
-                .map(this::toResponse)
+        User currentUser = getCurrentUser();
+        log.debug("Loading currentUser : {}",currentUser);
+        return documentRepository.findAllByDeletedFlagFalseAndCreatedBy_Id(currentUser.getId(), PageRequest.of(0, Integer.MAX_VALUE))
+                .stream()
+                .map(document -> toAccessibleResponse(document, currentUser, AccessContext.owner()))
                 .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public com.docflow.common.response.PagedResponse<DocumentResponse> getPaged(int page, int size, Long folderId) {
-        log.debug("Loading paged document list: page={}, size={}, folderId={}", page, size, folderId);
+    public PagedResponse<DocumentResponse> getPaged(int page, int size, Long folderId) {
+      log.debug("Loading paged document list: page={}, size={}, folderId={}", page, size, folderId);
+      User currentUser = getCurrentUser();
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Document> results;
-        if (folderId == null) {
-            results = documentRepository.findAllByDeletedFlagFalse(pageable);
-        } else {
-            results = documentRepository.findAllByDeletedFlagFalseAndFolder_Id(folderId, pageable);
-        }
-        List<DocumentResponse> items = results.stream().map(this::toResponse).toList();
-        return com.docflow.common.response.PagedResponse.<DocumentResponse>builder()
-                .items(items)
+        Page<Document> results = folderId == null
+                ? documentRepository.findAllByDeletedFlagFalseAndCreatedBy_Id(currentUser.getId(), pageable)
+                : documentRepository.findAllByDeletedFlagFalseAndCreatedBy_IdAndFolder_Id(currentUser.getId(), folderId, pageable);
+
+        return PagedResponse.<DocumentResponse>builder()
+                .items(results.stream()
+                        .map(document -> toAccessibleResponse(document, currentUser, AccessContext.owner()))
+                        .toList())
+                .page(results.getNumber())
+                .size(results.getSize())
+                .totalElements(results.getTotalElements())
+                .totalPages(results.getTotalPages())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<DocumentResponse> getSharedWithMe(int page, int size) {
+        User currentUser = getCurrentUser();
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<DocumentShare> results = documentShareRepository
+                .findAllBySharedWithUserIdAndDocumentDeletedFlagFalseOrderByCreatedAtDesc(currentUser.getId(), pageable);
+
+        return PagedResponse.<DocumentResponse>builder()
+                .items(results.stream().map(this::toSharedDocumentResponse).toList())
                 .page(results.getNumber())
                 .size(results.getSize())
                 .totalElements(results.getTotalElements())
@@ -160,14 +186,18 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(readOnly = true)
     public DocumentResponse getById(Long id) {
         log.debug("Loading document detail: documentId={}", id);
+        User currentUser = getCurrentUser();
+        Document document = getActiveDocument(id);
+        AccessContext accessContext = requireViewAccess(document, currentUser);
         DocumentResponse response = documentCacheService.getDocumentDetail(id)
                 .orElseGet(() -> {
                     log.debug("Document cache miss: documentId={}", id);
-                    DocumentResponse loadedResponse = toResponse(getActiveDocument(id));
+                    DocumentResponse loadedResponse = toResponse(document);
                     documentCacheService.cacheDocumentDetail(id, loadedResponse);
                     return loadedResponse;
                 });
-        documentCacheService.recordDocumentView(getCurrentUser().getId(), response);
+        applyAccessContext(response, accessContext);
+        documentCacheService.recordDocumentView(currentUser.getId(), response);
         return response;
     }
 
@@ -185,7 +215,7 @@ public class DocumentServiceImpl implements DocumentService {
                 id, request.getTitle(), request.getFolderId(), request.getStatus());
         User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
-        assertCanModifyDocument(currentUser, document);
+        AccessContext accessContext = requireEditAccess(document, currentUser);
         Folder folder = resolveFolder(request.getFolderId());
 
         document.setFolder(folder);
@@ -196,14 +226,95 @@ public class DocumentServiceImpl implements DocumentService {
 
         Document saved = documentRepository.save(document);
         log.info("Document updated successfully: documentId={}, version={}", saved.getId(), saved.getVersion());
-        DocumentResponse response = toResponse(saved);
         documentCacheService.evictDocumentDetail(id);
         activityLogService.log(currentUser.getId(), "DOCUMENT", saved.getId(), "UPDATE", java.util.Map.of(
                 "title", saved.getTitle(),
                 "status", saved.getStatus().name(),
                 "version", saved.getVersion()
         ));
-        return response;
+        return toAccessibleResponse(saved, currentUser, accessContext);
+    }
+
+    @Override
+    @Transactional
+    public DocumentShareItemResponse createShare(Long documentId, ShareDocumentRequest request) {
+        User currentUser = getCurrentUser();
+        Document document = getActiveDocument(documentId);
+        requireShareManagement(document, currentUser);
+
+        User sharedWith = resolveShareTarget(request.getSharedWithUserId(), currentUser.getId());
+        documentShareRepository.findByDocumentIdAndSharedWithUserId(documentId, sharedWith.getId())
+                .ifPresent(existing -> {
+                    throw new BadRequestException("文件已分享給此使用者");
+                });
+
+        DocumentShare saved = documentShareRepository.save(DocumentShare.builder()
+                .document(document)
+                .sharedWith(sharedWith)
+                .permission(parseSharePermission(request.getPermission()))
+                .createdBy(currentUser)
+                .build());
+
+        documentCacheService.evictDocumentDetail(documentId);
+        activityLogService.log(currentUser.getId(), "DOCUMENT", documentId, "SHARE_CREATE", java.util.Map.of(
+                "sharedWithUserId", sharedWith.getId(),
+                "sharedWithUsername", sharedWith.getUsername(),
+                "permission", saved.getPermission().name()
+        ));
+        return toShareItemResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentShareItemResponse> getShares(Long documentId) {
+        User currentUser = getCurrentUser();
+        Document document = getActiveDocument(documentId);
+        requireShareManagement(document, currentUser);
+
+        return documentShareRepository.findAllByDocumentIdOrderByCreatedAtAsc(documentId).stream()
+                .map(this::toShareItemResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public DocumentShareItemResponse updateShare(Long documentId, Long shareId, ShareDocumentRequest request) {
+        User currentUser = getCurrentUser();
+        Document document = getActiveDocument(documentId);
+        requireShareManagement(document, currentUser);
+
+        DocumentShare share = documentShareRepository.findByIdAndDocumentId(shareId, documentId)
+                .orElseThrow(() -> new BadRequestException("Document share not found"));
+        DocumentSharePermission previousPermission = share.getPermission();
+        DocumentSharePermission newPermission = parseSharePermission(request.getPermission());
+        share.setPermission(newPermission);
+
+        DocumentShare saved = documentShareRepository.save(share);
+        documentCacheService.evictDocumentDetail(documentId);
+        activityLogService.log(currentUser.getId(), "DOCUMENT", documentId, "SHARE_UPDATE", java.util.Map.of(
+                "sharedWithUserId", share.getSharedWith().getId(),
+                "sharedWithUsername", share.getSharedWith().getUsername(),
+                "previousPermission", previousPermission.name(),
+                "permission", saved.getPermission().name()
+        ));
+        return toShareItemResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteShare(Long documentId, Long shareId) {
+        User currentUser = getCurrentUser();
+        Document document = getActiveDocument(documentId);
+        requireShareManagement(document, currentUser);
+
+        DocumentShare share = documentShareRepository.findByIdAndDocumentId(shareId, documentId)
+                .orElseThrow(() -> new BadRequestException("Document share not found"));
+        documentShareRepository.delete(share);
+        documentCacheService.evictDocumentDetail(documentId);
+        activityLogService.log(currentUser.getId(), "DOCUMENT", documentId, "SHARE_DELETE", java.util.Map.of(
+                "sharedWithUserId", share.getSharedWith().getId(),
+                "sharedWithUsername", share.getSharedWith().getUsername()
+        ));
     }
 
     /**
@@ -217,7 +328,8 @@ public class DocumentServiceImpl implements DocumentService {
         log.info("Deleting document: documentId={}", id);
         User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
-        assertCanModifyDocument(currentUser, document);
+        requireDeleteAccess(document, currentUser);
+
         document.setDeletedFlag(true);
         documentRepository.save(document);
         log.info("Document soft-deleted successfully: documentId={}", document.getId());
@@ -242,54 +354,11 @@ public class DocumentServiceImpl implements DocumentService {
             log.warn("Document download rejected because no file is stored: documentId={}", id);
             throw new BadRequestException("Document file has not been uploaded");
         }
-        Long currentUserId = getCurrentUser().getId();
-        activityLogService.log(currentUserId, "DOCUMENT", response.getId(), "DOWNLOAD", java.util.Map.of(
+        activityLogService.log(getCurrentUser().getId(), "DOCUMENT", response.getId(), "DOWNLOAD", java.util.Map.of(
                 "fileName", response.getFileName(),
                 "version", response.getVersion()
         ));
-        log.info("Document download prepared successfully: documentId={}, storedFileName={}",
-                response.getId(), response.getStoredFileName());
         return localFileStorageService.loadAsResource(response.getStoredFileName());
-    }
-
-    /**
-     * 取得未被刪除的文件，找不到時拋出例外。
-     *
-     * @param id 文件編號
-     * @return 文件實體
-     */
-    private Document getActiveDocument(Long id) {
-        log.debug("Resolving active document: documentId={}", id);
-        return documentRepository.findByIdAndDeletedFlagFalse(id)
-                .orElseThrow(() -> new BadRequestException("Document not found"));
-    }
-
-    /**
-     * 驗證目前使用者是否有權限修改指定文件。
-     * 系統管理員和主管擁有全部權限；普通使用者僅能修改自己建立的文件。
-     *
-     * @param currentUser 目前登入的使用者
-     * @param document 文件實體
-     * @throws ForbiddenException 若使用者無權限修改該文件
-     */
-    private void assertCanModifyDocument(User currentUser, Document document) {
-        log.debug("Checking document modification permission: userId={}, role={}, documentId={}, documentCreatedBy={}",
-                currentUser.getId(), currentUser.getRole(), document.getId(),
-                document.getCreatedBy() != null ? document.getCreatedBy().getId() : null);
-        if (currentUser.getRole() == UserRole.ADMIN
-                || currentUser.getRole() == UserRole.MANAGER) {
-            log.debug("User has privileged role, allowing document modification");
-            return;
-        }
-        if (currentUser.getRole() == UserRole.USER
-                && document.getCreatedBy() != null
-                && document.getCreatedBy().getId() != null
-                && document.getCreatedBy().getId().equals(currentUser.getId())) {
-            log.debug("User is document creator, allowing modification");
-            return;
-        }
-        log.warn("User lacks permission to modify document: userId={}, documentId={}", currentUser.getId(), document.getId());
-        throw new ForbiddenException("無權限操作此文件");
     }
 
     /**
@@ -302,6 +371,17 @@ public class DocumentServiceImpl implements DocumentService {
         log.debug("Resolving current user for document operation: userId={}", userId);
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("Current user not found"));
+    }
+
+    /**
+     * 取得未被刪除的文件，找不到時拋出例外。
+     *
+     * @param id 文件編號
+     * @return 文件實體
+     */
+    private Document getActiveDocument(Long id) {
+        return documentRepository.findByIdAndDeletedFlagFalse(id)
+                .orElseThrow(() -> new BadRequestException("Document not found"));
     }
 
     /**
@@ -319,6 +399,70 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
     }
 
+    private User resolveShareTarget(Long sharedWithUserId, Long currentUserId) {
+        if (sharedWithUserId == null) {
+            throw new BadRequestException("sharedWithUserId is required");
+        }
+        User sharedWith = userRepository.findById(sharedWithUserId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (sharedWith.getStatus() != UserStatus.ACTIVE) {
+            throw new BadRequestException("User is not active");
+        }
+        if (sharedWith.getId().equals(currentUserId)) {
+            throw new BadRequestException("Cannot share a document with yourself");
+        }
+        return sharedWith;
+    }
+
+    private AccessContext requireViewAccess(Document document, User currentUser) {
+        if (isPrivileged(currentUser)) {
+            return AccessContext.admin();
+        }
+        if (isOwner(currentUser, document)) {
+            return AccessContext.owner();
+        }
+        return documentShareRepository.findByDocumentIdAndSharedWithUserId(document.getId(), currentUser.getId())
+                .map(share -> AccessContext.shared(share.getPermission(), share.getCreatedBy()))
+                .orElseThrow(() -> new ForbiddenException("無權限查看此文件"));
+    }
+
+    private AccessContext requireEditAccess(Document document, User currentUser) {
+        if (isPrivileged(currentUser)) {
+            return AccessContext.admin();
+        }
+        if (isOwner(currentUser, document)) {
+            return AccessContext.owner();
+        }
+        return documentShareRepository.findByDocumentIdAndSharedWithUserId(document.getId(), currentUser.getId())
+                .filter(share -> share.getPermission() == DocumentSharePermission.EDIT)
+                .map(share -> AccessContext.shared(DocumentSharePermission.EDIT, share.getCreatedBy()))
+                .orElseThrow(() -> new ForbiddenException("無權限編輯此文件"));
+    }
+
+    private void requireDeleteAccess(Document document, User currentUser) {
+        if (isPrivileged(currentUser) || isOwner(currentUser, document)) {
+            return;
+        }
+        throw new ForbiddenException("無權限操作此文件");
+    }
+
+    private void requireShareManagement(Document document, User currentUser) {
+        if (isPrivileged(currentUser) || isOwner(currentUser, document)) {
+            return;
+        }
+        throw new ForbiddenException("無權限管理此文件分享");
+    }
+
+    private boolean isPrivileged(User user) {
+        return user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.MANAGER;
+    }
+
+    private boolean isOwner(User user, Document document) {
+        return document.getCreatedBy() != null
+                && document.getCreatedBy().getId() != null
+                && document.getCreatedBy().getId().equals(user.getId());
+    }
+
     /**
      * 將字串狀態轉為文件狀態列舉。
      *
@@ -329,11 +473,52 @@ public class DocumentServiceImpl implements DocumentService {
     private DocumentStatus parseStatus(String status) {
         log.debug("Parsing document status: status={}", status);
         try {
-            return DocumentStatus.valueOf(status.toUpperCase());
+            return DocumentStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
         } catch (Exception ex) {
             log.warn("Invalid document status received: {}", status);
             throw new BadRequestException("Invalid document status");
         }
+    }
+
+    private DocumentSharePermission parseSharePermission(String permission) {
+        try {
+            return DocumentSharePermission.valueOf(permission.trim().toUpperCase(Locale.ROOT));
+        } catch (Exception ex) {
+            throw new BadRequestException("Invalid share permission");
+        }
+    }
+
+    private DocumentResponse toSharedDocumentResponse(DocumentShare share) {
+        return toAccessibleResponse(
+                share.getDocument(),
+                share.getSharedWith(),
+                AccessContext.shared(share.getPermission(), share.getCreatedBy())
+        );
+    }
+
+    private DocumentResponse toAccessibleResponse(Document document, User currentUser, AccessContext existingContext) {
+        AccessContext accessContext = existingContext != null ? existingContext : requireViewAccess(document, currentUser);
+        DocumentResponse response = toResponse(document);
+        applyAccessContext(response, accessContext);
+        return response;
+    }
+
+    private void applyAccessContext(DocumentResponse response, AccessContext accessContext) {
+        response.setAccessLevel(accessContext.accessLevel.name());
+        response.setSharedBy(accessContext.sharedBy);
+    }
+
+    private DocumentShareItemResponse toShareItemResponse(DocumentShare share) {
+        return DocumentShareItemResponse.builder()
+                .id(share.getId())
+                .documentId(share.getDocument().getId())
+                .userId(share.getSharedWith().getId())
+                .username(share.getSharedWith().getUsername())
+                .email(share.getSharedWith().getEmail())
+                .permission(share.getPermission().name())
+                .sharedBy(share.getCreatedBy() != null ? share.getCreatedBy().getUsername() : null)
+                .createdAt(share.getCreatedAt())
+                .build();
     }
 
     /**
@@ -358,6 +543,25 @@ public class DocumentServiceImpl implements DocumentService {
                 .createdBy(document.getCreatedBy() != null ? document.getCreatedBy().getId() : null)
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
+                .accessLevel(null)
+                .sharedBy(null)
                 .build();
+    }
+
+    private record AccessContext(DocumentAccessLevel accessLevel, String sharedBy) {
+        private static AccessContext owner() {
+            return new AccessContext(DocumentAccessLevel.OWNER, null);
+        }
+
+        private static AccessContext admin() {
+            return new AccessContext(DocumentAccessLevel.ADMIN, null);
+        }
+
+        private static AccessContext shared(DocumentSharePermission permission, User sharedByUser) {
+            return new AccessContext(
+                    permission == DocumentSharePermission.EDIT ? DocumentAccessLevel.EDIT : DocumentAccessLevel.VIEW,
+                    sharedByUser != null ? sharedByUser.getUsername() : null
+            );
+        }
     }
 }

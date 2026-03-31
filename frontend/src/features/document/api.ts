@@ -14,6 +14,8 @@ export interface PagedResponse<T> {
   totalPages: number
 }
 
+export type DocumentAccessLevel = 'OWNER' | 'VIEW' | 'EDIT' | 'ADMIN'
+
 export interface DocumentItem {
   id: number
   folderId: number | null
@@ -28,6 +30,8 @@ export interface DocumentItem {
   createdBy: number
   createdAt: string
   updatedAt: string
+  accessLevel: DocumentAccessLevel | null
+  sharedBy: string | null
 }
 
 export interface CreateDocumentRequest {
@@ -44,6 +48,32 @@ export interface UpdateDocumentRequest {
   status: string
 }
 
+export interface DocumentShareItem {
+  id: number
+  documentId: number
+  userId: number
+  username: string
+  email: string
+  permission: Extract<DocumentAccessLevel, 'VIEW' | 'EDIT'>
+  sharedBy: string | null
+  createdAt: string
+}
+
+export interface ShareDocumentRequest {
+  sharedWithUserId: number
+  permission: Extract<DocumentAccessLevel, 'VIEW' | 'EDIT'>
+}
+
+function emptyPage<T>(size: number): PagedResponse<T> {
+  return {
+    items: [],
+    page: 0,
+    size,
+    totalElements: 0,
+    totalPages: 0,
+  }
+}
+
 export async function getDocuments(page = 0, size = 10, folderId?: number | null): Promise<PagedResponse<DocumentItem>> {
   const response = await apiClient.get<ApiResponse<PagedResponse<DocumentItem>>>('/api/documents', {
     params: {
@@ -52,23 +82,17 @@ export async function getDocuments(page = 0, size = 10, folderId?: number | null
       folderId: folderId ?? undefined,
     },
   })
-  const payload = response.data.data
-  if (!payload) {
-    return {
-      items: [],
-      page: 0,
+  return response.data.data ?? emptyPage<DocumentItem>(size)
+}
+
+export async function getSharedDocuments(page = 0, size = 10): Promise<PagedResponse<DocumentItem>> {
+  const response = await apiClient.get<ApiResponse<PagedResponse<DocumentItem>>>('/api/documents/shared-with-me', {
+    params: {
+      page,
       size,
-      totalElements: 0,
-      totalPages: 0,
-    }
-  }
-  return {
-    items: payload.items ?? [],
-    page: payload.page ?? 0,
-    size: payload.size ?? size,
-    totalElements: payload.totalElements ?? 0,
-    totalPages: payload.totalPages ?? 0,
-  }
+    },
+  })
+  return response.data.data ?? emptyPage<DocumentItem>(size)
 }
 
 export async function getDocumentDetail(id: number): Promise<DocumentItem> {
@@ -108,4 +132,23 @@ export async function downloadDocumentFile(id: number): Promise<Blob> {
     responseType: 'blob',
   })
   return response.data
+}
+
+export async function getDocumentShares(documentId: number): Promise<DocumentShareItem[]> {
+  const response = await apiClient.get<ApiResponse<DocumentShareItem[]>>(`/api/documents/${documentId}/shares`)
+  return response.data.data ?? []
+}
+
+export async function addDocumentShare(documentId: number, request: ShareDocumentRequest): Promise<DocumentShareItem> {
+  const response = await apiClient.post<ApiResponse<DocumentShareItem>>(`/api/documents/${documentId}/shares`, request)
+  return response.data.data
+}
+
+export async function updateDocumentShare(documentId: number, shareId: number, request: ShareDocumentRequest): Promise<DocumentShareItem> {
+  const response = await apiClient.put<ApiResponse<DocumentShareItem>>(`/api/documents/${documentId}/shares/${shareId}`, request)
+  return response.data.data
+}
+
+export async function deleteDocumentShare(documentId: number, shareId: number): Promise<void> {
+  await apiClient.delete(`/api/documents/${documentId}/shares/${shareId}`)
 }
