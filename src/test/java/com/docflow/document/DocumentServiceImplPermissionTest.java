@@ -4,6 +4,7 @@ import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.exception.ForbiddenException;
 import com.docflow.common.security.DocflowUserPrincipal;
+import com.docflow.document.dto.CreateDocumentRequest;
 import com.docflow.document.dto.DocumentResponse;
 import com.docflow.document.dto.DocumentShareItemResponse;
 import com.docflow.document.dto.ShareDocumentRequest;
@@ -94,7 +95,7 @@ class DocumentServiceImplPermissionTest {
         setCurrentUser(2L, UserRole.USER);
         Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocument(1L, 1L)));
 
-        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest()))
+        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest(10L)))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("無權限編輯此文件");
     }
@@ -110,6 +111,30 @@ class DocumentServiceImplPermissionTest {
     }
 
     @Test
+    void userCannotCreateDocumentUnderAnotherUsersFolder() {
+        setCurrentUser(2L, UserRole.USER);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(10L)).thenReturn(Optional.of(buildFolder(10L, 1L)));
+
+        assertThatThrownBy(() -> documentService.create(buildCreateRequest(10L)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此資料夾");
+
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    @Test
+    void userCannotCreateDocumentUnderUnownedFolder() {
+        setCurrentUser(2L, UserRole.USER);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(10L)).thenReturn(Optional.of(buildFolder(10L, null)));
+
+        assertThatThrownBy(() -> documentService.create(buildCreateRequest(10L)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此資料夾");
+
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    @Test
     void userCannotDeleteOthersDocument() {
         setCurrentUser(2L, UserRole.USER);
         Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocument(1L, 1L)));
@@ -122,14 +147,41 @@ class DocumentServiceImplPermissionTest {
     @Test
     void userCanUpdateOwnDocument() {
         setCurrentUser(1L, UserRole.USER);
-        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocument(1L, 1L)));
-        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(anyLong())).thenReturn(Optional.of(buildFolder()));
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
         Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        DocumentResponse response = documentService.update(1L, buildUpdateRequest());
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest(10L));
 
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.OWNER.name());
+    }
+
+    @Test
+    void ownerCanMoveOwnDocumentToAnotherOwnedFolder() {
+        setCurrentUser(1L, UserRole.USER);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(11L)).thenReturn(Optional.of(buildFolder(11L, 1L)));
+        Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest(11L));
+
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.OWNER.name());
+    }
+
+    @Test
+    void ownerCanMoveOwnDocumentBackToNoFolder() {
+        setCurrentUser(1L, UserRole.USER);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
+        Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest(null));
+
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getFolderId()).isNull();
+        verify(folderRepository, never()).findByIdAndDeletedFlagFalse(anyLong());
     }
 
     @Test
@@ -143,6 +195,22 @@ class DocumentServiceImplPermissionTest {
 
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.OWNER.name());
+    }
+
+    @Test
+    void adminCanCreateDocumentUnderAnotherUsersFolder() {
+        setCurrentUser(2L, UserRole.ADMIN);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(10L)).thenReturn(Optional.of(buildFolder(10L, 1L)));
+        Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> {
+            Document document = invocation.getArgument(0);
+            document.setId(99L);
+            return document;
+        });
+
+        DocumentResponse response = documentService.create(buildCreateRequest(10L));
+
+        assertThat(response.getId()).isEqualTo(99L);
+        assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.ADMIN.name());
     }
 
     @Test
@@ -222,27 +290,72 @@ class DocumentServiceImplPermissionTest {
     @Test
     void sharedViewUserCannotUpdateDocument() {
         setCurrentUser(2L, UserRole.USER);
-        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocument(1L, 1L)));
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
         Mockito.when(documentShareRepository.findByDocumentIdAndSharedWithUserId(1L, 2L))
                 .thenReturn(Optional.of(buildShare(1L, 1L, 2L, DocumentSharePermission.VIEW)));
 
-        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest()))
+        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest(10L)))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("無權限編輯此文件");
     }
 
     @Test
-    void sharedEditUserCanUpdateDocument() {
+    void sharedEditUserCanUpdateDocumentWithoutChangingFolder() {
         setCurrentUser(2L, UserRole.USER);
-        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L)).thenReturn(Optional.of(buildDocument(1L, 1L)));
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
         Mockito.when(documentShareRepository.findByDocumentIdAndSharedWithUserId(1L, 2L))
                 .thenReturn(Optional.of(buildShare(1L, 1L, 2L, DocumentSharePermission.EDIT)));
-        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(anyLong())).thenReturn(Optional.of(buildFolder()));
         Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        DocumentResponse response = documentService.update(1L, buildUpdateRequest());
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest(10L));
 
         assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.EDIT.name());
+        assertThat(response.getTitle()).isEqualTo("New Title");
+    }
+
+    @Test
+    void sharedEditUserCannotMoveDocumentToOwnFolder() {
+        setCurrentUser(2L, UserRole.USER);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
+        Mockito.when(documentShareRepository.findByDocumentIdAndSharedWithUserId(1L, 2L))
+                .thenReturn(Optional.of(buildShare(1L, 1L, 2L, DocumentSharePermission.EDIT)));
+
+        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest(20L)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此資料夾");
+
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(folderRepository, never()).findByIdAndDeletedFlagFalse(20L);
+    }
+
+    @Test
+    void userCannotMoveDocumentToAnotherUsersFolder() {
+        setCurrentUser(2L, UserRole.USER);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 2L, buildFolder(10L, 2L))));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(20L)).thenReturn(Optional.of(buildFolder(20L, 1L)));
+
+        assertThatThrownBy(() -> documentService.update(1L, buildUpdateRequest(20L)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("無權限操作此資料夾");
+
+        verify(documentRepository, never()).save(any(Document.class));
+    }
+
+    @Test
+    void managerCanMoveDocumentToAnotherUsersFolder() {
+        setCurrentUser(2L, UserRole.MANAGER);
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(buildDocumentWithFolder(1L, 1L, buildFolder(10L, 1L))));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(20L)).thenReturn(Optional.of(buildFolder(20L, 1L)));
+        Mockito.when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = documentService.update(1L, buildUpdateRequest(20L));
+
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getAccessLevel()).isEqualTo(DocumentAccessLevel.ADMIN.name());
     }
 
     @Test
@@ -372,9 +485,14 @@ class DocumentServiceImplPermissionTest {
     }
 
     private Document buildDocument(Long documentId, Long createdById) {
+        return buildDocumentWithFolder(documentId, createdById, null);
+    }
+
+    private Document buildDocumentWithFolder(Long documentId, Long createdById, Folder folder) {
         User creator = createdById == null ? null : buildUser(createdById, UserRole.USER);
         return Document.builder()
                 .id(documentId)
+                .folder(folder)
                 .title("Doc")
                 .description("Desc")
                 .version(1)
@@ -385,18 +503,35 @@ class DocumentServiceImplPermissionTest {
     }
 
     private Folder buildFolder() {
+        return buildFolder(10L, 1L);
+    }
+
+    private Folder buildFolder(Long folderId, Long createdById) {
         return Folder.builder()
-                .id(10L)
+                .id(folderId)
                 .name("Folder")
                 .sortOrder(0)
-                .createdBy(buildUser(1L, UserRole.USER))
+                .createdBy(createdById == null ? null : buildUser(createdById, UserRole.USER))
                 .deletedFlag(false)
                 .build();
     }
 
     private UpdateDocumentRequest buildUpdateRequest() {
+        return buildUpdateRequest(10L);
+    }
+
+    private UpdateDocumentRequest buildUpdateRequest(Long folderId) {
         UpdateDocumentRequest request = new UpdateDocumentRequest();
-        request.setFolderId(10L);
+        request.setFolderId(folderId);
+        request.setTitle("New Title");
+        request.setDescription("New Description");
+        request.setStatus("ACTIVE");
+        return request;
+    }
+
+    private CreateDocumentRequest buildCreateRequest(Long folderId) {
+        CreateDocumentRequest request = new CreateDocumentRequest();
+        request.setFolderId(folderId);
         request.setTitle("New Title");
         request.setDescription("New Description");
         request.setStatus("ACTIVE");

@@ -38,6 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
@@ -68,6 +69,7 @@ public class DocumentServiceImpl implements DocumentService {
                 request.getTitle(), request.getFolderId(), request.getStatus());
         User currentUser = getCurrentUser();
         Folder folder = resolveFolder(request.getFolderId());
+        validateFolderCreationAccess(folder, currentUser);
 
         Document document = documentRepository.save(Document.builder()
                 .folder(folder)
@@ -216,7 +218,7 @@ public class DocumentServiceImpl implements DocumentService {
         User currentUser = getCurrentUser();
         Document document = getActiveDocument(id);
         AccessContext accessContext = requireEditAccess(document, currentUser);
-        Folder folder = resolveFolder(request.getFolderId());
+        Folder folder = resolveUpdateFolder(document, request.getFolderId(), currentUser);
 
         document.setFolder(folder);
         document.setTitle(request.getTitle());
@@ -397,6 +399,38 @@ public class DocumentServiceImpl implements DocumentService {
         log.debug("Resolving document folder: folderId={}", folderId);
         return folderRepository.findByIdAndDeletedFlagFalse(folderId)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
+    }
+
+    private Folder resolveUpdateFolder(Document document, Long targetFolderId, User currentUser) {
+        Long currentFolderId = document.getFolder() != null ? document.getFolder().getId() : null;
+        if (Objects.equals(currentFolderId, targetFolderId)) {
+            return document.getFolder();
+        }
+        if (targetFolderId == null) {
+            if (isPrivileged(currentUser) || isOwner(currentUser, document)) {
+                return null;
+            }
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
+        if (isPrivileged(currentUser)) {
+            return resolveFolder(targetFolderId);
+        }
+        if (!isOwner(currentUser, document)) {
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
+        Folder folder = resolveFolder(targetFolderId);
+        validateFolderCreationAccess(folder, currentUser);
+        return folder;
+    }
+
+    private void validateFolderCreationAccess(Folder folder, User currentUser) {
+        if (folder == null || isPrivileged(currentUser)) {
+            return;
+        }
+        Long folderOwnerId = folder.getCreatedBy() != null ? folder.getCreatedBy().getId() : null;
+        if (folderOwnerId == null || !folderOwnerId.equals(currentUser.getId())) {
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
     }
 
     private User resolveShareTarget(Long sharedWithUserId, Long currentUserId) {
