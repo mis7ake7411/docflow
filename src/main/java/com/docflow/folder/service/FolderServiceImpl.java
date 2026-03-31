@@ -142,7 +142,7 @@ public class FolderServiceImpl implements FolderService {
     @Transactional
     public void reorder(ReorderFoldersRequest request) {
         User currentUser = getCurrentUser();
-        List<Folder> siblings = loadSiblings(request.getParentId());
+        List<Folder> siblings = loadSiblings(currentUser, request.getParentId());
         validateReorderRequest(request.getOrderedFolderIds(), siblings);
         assertCanReorderSiblings(currentUser, siblings);
 
@@ -261,10 +261,25 @@ public class FolderServiceImpl implements FolderService {
         return folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(currentUser.getId());
     }
 
-    private List<Folder> loadSiblings(Long parentId) {
-        return parentId == null
-                ? folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc()
-                : folderRepository.findAllByDeletedFlagFalseAndParentIdOrderBySortOrderAscIdAsc(parentId);
+    private List<Folder> loadSiblings(User currentUser, Long parentId) {
+        if (canSeeAllFolders(currentUser)) {
+            return parentId == null
+                    ? folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc()
+                    : folderRepository.findAllByDeletedFlagFalseAndParentIdOrderBySortOrderAscIdAsc(parentId);
+        }
+        List<Folder> userFolders = folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(currentUser.getId());
+        if (parentId == null) {
+            Map<Long, Folder> folderById = userFolders.stream()
+                    .filter(folder -> folder.getId() != null)
+                    .collect(Collectors.toMap(Folder::getId, folder -> folder));
+            return userFolders.stream()
+                    .filter(folder -> folder.getParent() == null
+                            || folder.getParent().getId() == null
+                            || !folderById.containsKey(folder.getParent().getId()))
+                    .sorted(Comparator.comparing(Folder::getSortOrder).thenComparing(Folder::getId))
+                    .toList();
+        }
+        return folderRepository.findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(parentId, currentUser.getId());
     }
 
     private void validateReorderRequest(List<Long> orderedFolderIds, List<Folder> siblings) {

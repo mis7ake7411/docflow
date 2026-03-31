@@ -235,16 +235,17 @@ class FolderServiceImplTest {
     }
 
     @Test
-    void reorderShouldRewriteSiblingSortOrder() {
+    void reorderShouldAllowUserToReorderOrphanPromotedRootFolders() {
         setCurrentUser(1L, UserRole.USER);
-        Folder first = buildFolder(1L, "A", null, 0, 1L);
-        Folder second = buildFolder(2L, "B", null, 1, 1L);
-        Folder third = buildFolder(3L, "C", null, 2, 1L);
+        Folder root = buildFolder(1L, "Root", null, 0, 1L);
+        Folder foreignParent = buildFolder(99L, "Foreign Parent", null, 0, 2L);
+        Folder orphanA = buildFolder(2L, "Orphan A", foreignParent, 1, 1L);
+        Folder orphanB = buildFolder(3L, "Orphan B", foreignParent, 2, 1L);
         ReorderFoldersRequest request = new ReorderFoldersRequest();
         request.setParentId(null);
         request.setOrderedFolderIds(List.of(3L, 1L, 2L));
-        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc())
-                .thenReturn(List.of(first, second, third));
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(1L))
+                .thenReturn(List.of(root, orphanA, orphanB));
 
         folderService.reorder(request);
 
@@ -257,26 +258,48 @@ class FolderServiceImplTest {
                         org.assertj.core.groups.Tuple.tuple(1L, 1),
                         org.assertj.core.groups.Tuple.tuple(2L, 2)
                 );
+        Mockito.verify(folderRepository).findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(1L);
+        Mockito.verify(folderRepository, Mockito.never()).findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc();
     }
 
     @Test
-    void reorderShouldRejectWhenOrderedIdsDoNotMatchSiblingSet() {
+    void reorderShouldAllowUserToReorderDirectChildrenUnderParent() {
         setCurrentUser(1L, UserRole.USER);
-        Folder first = buildFolder(1L, "A", null, 0, 1L);
-        Folder second = buildFolder(2L, "B", null, 1, 1L);
+        Folder parent = buildFolder(5L, "Parent", null, 0, 1L);
+        Folder first = buildFolder(1L, "A", parent, 0, 1L);
+        Folder second = buildFolder(2L, "B", parent, 1, 1L);
         ReorderFoldersRequest request = new ReorderFoldersRequest();
-        request.setParentId(null);
-        request.setOrderedFolderIds(List.of(2L));
-        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc())
+        request.setParentId(5L);
+        request.setOrderedFolderIds(List.of(2L, 1L));
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(5L, 1L))
                 .thenReturn(List.of(first, second));
+
+        folderService.reorder(request);
+
+        Mockito.verify(folderRepository).findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(5L, 1L);
+        Mockito.verify(folderRepository).saveAll(Mockito.anyIterable());
+    }
+
+    @Test
+    void reorderShouldRejectWhenUserUsesExternalParentForOrphanGroup() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder foreignParent = buildFolder(99L, "Foreign Parent", null, 0, 2L);
+        Folder orphan = buildFolder(2L, "Orphan", foreignParent, 0, 1L);
+        ReorderFoldersRequest request = new ReorderFoldersRequest();
+        request.setParentId(99L);
+        request.setOrderedFolderIds(List.of(2L));
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(99L, 1L))
+                .thenReturn(List.of());
 
         assertThatThrownBy(() -> folderService.reorder(request))
                 .isInstanceOf(BadRequestException.class);
+        Mockito.verify(folderRepository).findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(99L, 1L);
+        Mockito.verify(folderRepository, Mockito.never()).saveAll(Mockito.anyIterable());
     }
 
     @Test
-    void reorderShouldRejectWhenUserCannotModifyAllSiblings() {
-        setCurrentUser(1L, UserRole.USER);
+    void reorderShouldAllowAdminToReorderMixedSiblingOwners() {
+        setCurrentUser(1L, UserRole.ADMIN);
         Folder first = buildFolder(1L, "Mine", null, 0, 1L);
         Folder second = buildFolder(2L, "Others", null, 1, 2L);
         ReorderFoldersRequest request = new ReorderFoldersRequest();
@@ -285,9 +308,9 @@ class FolderServiceImplTest {
         Mockito.when(folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc())
                 .thenReturn(List.of(first, second));
 
-        assertThatThrownBy(() -> folderService.reorder(request))
-                .isInstanceOf(ForbiddenException.class)
-                .hasMessageContaining("無權限操作此資料夾");
+        folderService.reorder(request);
+
+        Mockito.verify(folderRepository).saveAll(Mockito.anyIterable());
     }
 
     @Test

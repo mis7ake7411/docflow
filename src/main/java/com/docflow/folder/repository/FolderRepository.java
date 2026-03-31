@@ -24,6 +24,8 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
 
     List<Folder> findAllByDeletedFlagFalseAndParentIdOrderBySortOrderAscIdAsc(Long parentId);
 
+    List<Folder> findAllByDeletedFlagFalseAndParentIdAndCreatedByIdOrderBySortOrderAscIdAsc(Long parentId, Long createdById);
+
     Optional<Folder> findTopByDeletedFlagFalseAndParentIsNullOrderBySortOrderDescIdDesc();
 
     Optional<Folder> findTopByDeletedFlagFalseAndParentIdOrderBySortOrderDescIdDesc(Long parentId);
