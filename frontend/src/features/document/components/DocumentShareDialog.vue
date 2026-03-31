@@ -37,36 +37,38 @@
           description="找不到符合條件的使用者"
         />
 
-        <el-table v-else-if="searchSubmittedKeyword" :data="searchResults" size="small" stripe>
-          <el-table-column prop="username" label="帳號" min-width="140" />
-          <el-table-column prop="email" label="Email" min-width="220" />
-          <el-table-column label="角色" width="120">
-            <template #default="scope">
-              {{ getRoleLabel(scope.row.role) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="權限" width="160">
-            <template #default="scope">
-              <el-select v-model="grantPermissions[scope.row.id]" size="small" style="width: 100%">
-                <el-option label="可檢視" value="VIEW" />
-                <el-option label="可編輯" value="EDIT" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="120">
-            <template #default="scope">
-              <el-button
-                size="small"
-                type="primary"
-                :loading="addingShareUserId === scope.row.id"
-                :disabled="scope.row.id === currentUserId"
-                @click="handleAddShare(scope.row.id)"
-              >
-                新增分享
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-else-if="searchSubmittedKeyword" class="share-table-wrapper">
+          <el-table :data="searchResults" size="small" stripe>
+            <el-table-column prop="username" label="帳號" min-width="140" />
+            <el-table-column prop="email" label="Email" min-width="220" />
+            <el-table-column label="角色" width="120">
+              <template #default="scope">
+                {{ getRoleLabel(scope.row.role) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="權限" width="160">
+              <template #default="scope">
+                <el-select v-model="grantPermissions[scope.row.id]" size="small" style="width: 100%">
+                  <el-option label="可檢視" value="VIEW" />
+                  <el-option label="可編輯" value="EDIT" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="scope">
+                <el-button
+                  size="small"
+                  type="primary"
+                  :loading="addingShareUserId === scope.row.id"
+                  :disabled="scope.row.id === currentUserId"
+                  @click="handleAddShare(scope.row.id)"
+                >
+                  新增分享
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </section>
 
       <section class="share-section">
@@ -87,44 +89,46 @@
         />
         <el-empty v-else-if="!shares.length" description="尚未分享給任何使用者" />
 
-        <el-table v-else :data="shares" size="small" stripe>
-          <el-table-column prop="username" label="使用者" min-width="160" />
-          <el-table-column prop="email" label="Email" min-width="220" />
-          <el-table-column label="權限" width="160">
-            <template #default="scope">
-              <el-select v-model="scope.row.permission" size="small" style="width: 100%">
-                <el-option label="可檢視" value="VIEW" />
-                <el-option label="可編輯" value="EDIT" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="分享者" min-width="140">
-            <template #default="scope">
-              {{ scope.row.sharedBy || '未知' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="建立時間" min-width="180">
-            <template #default="scope">
-              {{ formatDate(scope.row.createdAt) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="180">
-            <template #default="scope">
-              <el-button
-                size="small"
-                :loading="updatingShareId === scope.row.id"
-                @click="handleUpdateShare(scope.row.id, scope.row.permission)"
-              >
-                更新
-              </el-button>
-              <el-popconfirm title="確定取消這筆分享？" @confirm="handleDeleteShare(scope.row.id)">
-                <template #reference>
-                  <el-button size="small" type="danger">移除</el-button>
-                </template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-else class="share-table-wrapper">
+          <el-table :data="shares" size="small" stripe>
+            <el-table-column prop="username" label="使用者" min-width="160" />
+            <el-table-column prop="email" label="Email" min-width="220" />
+            <el-table-column label="權限" width="160">
+              <template #default="scope">
+                <el-select v-model="scope.row.permission" size="small" style="width: 100%">
+                  <el-option label="可檢視" value="VIEW" />
+                  <el-option label="可編輯" value="EDIT" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column label="分享者" min-width="140">
+              <template #default="scope">
+                {{ scope.row.sharedBy || '未知' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="建立時間" min-width="180">
+              <template #default="scope">
+                {{ formatDate(scope.row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180">
+              <template #default="scope">
+                <el-button
+                  size="small"
+                  :loading="updatingShareId === scope.row.id"
+                  @click="handleUpdateShare(scope.row.id, scope.row.permission)"
+                >
+                  更新
+                </el-button>
+                <el-popconfirm title="確認要移除此分享？" @confirm="handleDeleteShare(scope.row.id)">
+                  <template #reference>
+                    <el-button size="small" type="danger">移除</el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </section>
     </div>
   </el-dialog>
@@ -134,6 +138,7 @@
 import { computed, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
+import { isAxiosError } from 'axios'
 import {
   addDocumentShare,
   deleteDocumentShare,
@@ -142,10 +147,9 @@ import {
   type DocumentAccessLevel,
 } from '@/features/document/api'
 import { getShareCandidates } from '@/features/user/api'
-import { useAuthStore } from '@/stores/auth'
 import { getRoleLabel } from '@/shared/utils/display'
 import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
-import { isAxiosError } from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -300,12 +304,14 @@ function formatDate(value: string) {
 .share-dialog {
   display: grid;
   gap: 24px;
+  min-width: 0;
 }
 
 .share-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .section-header h3,
@@ -320,6 +326,21 @@ function formatDate(value: string) {
 .search-row {
   display: flex;
   gap: 12px;
+}
+
+.search-row :deep(.el-input) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-row :deep(.el-button) {
+  flex: 0 0 auto;
+}
+
+.share-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 @media (max-width: 768px) {

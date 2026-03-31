@@ -24,10 +24,32 @@ test.describe('文件分享', () => {
     await assertActivityEntry(page, new RegExp(`${otherUser}.*可檢視`))
   })
 
-  test('分享權限升級為可編輯後，被分享者可操作文件並看到更新紀錄', async ({ page }) => {
+  test('分享成功後分享名單仍維持在對話框內', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser } = await createAccounts(page, 'share-layout', suffix)
+    const title = `E2E-分享跑版-${suffix}`
+
+    await login(page, ownerUser, ownerPass)
+    await createDocumentAndOpenDetail(page, title, 'share-layout')
+    await createShareByUi(page, otherUser)
+
+    const dialog = page.locator('.el-dialog').filter({ has: page.locator('.share-dialog') })
+    const shareListWrapper = dialog.locator('.share-table-wrapper').last()
+
+    await expect(shareListWrapper).toBeVisible()
+
+    const dialogBox = await dialog.boundingBox()
+    const shareListWrapperBox = await shareListWrapper.boundingBox()
+
+    expect(dialogBox).not.toBeNull()
+    expect(shareListWrapperBox).not.toBeNull()
+    expect(shareListWrapperBox!.x + shareListWrapperBox!.width).toBeLessThanOrEqual(dialogBox!.x + dialogBox!.width + 1)
+  })
+
+  test('分享權限改成可編輯後，被分享者可修改文件並看到更新紀錄', async ({ page }) => {
     const suffix = String(Date.now())
     const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'share', suffix)
-    const title = `E2E-分享升級-${suffix}`
+    const title = `E2E-分享權限-${suffix}`
 
     await login(page, ownerUser, ownerPass)
     const documentId = await createDocumentAndOpenDetail(page, title, 'share-e2e')
@@ -46,7 +68,7 @@ test.describe('文件分享', () => {
     await expect(page.getByRole('button', { name: '上傳檔案' })).toBeEnabled()
   })
 
-  test('owner 取消分享後，被分享者不可再看到文件，且儀表板有取消紀錄', async ({ page }) => {
+  test('owner 移除分享後，被分享者不可再看到文件，儀表板也會顯示取消紀錄', async ({ page }) => {
     const suffix = String(Date.now())
     const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'share', suffix)
     const title = `E2E-分享移除-${suffix}`
