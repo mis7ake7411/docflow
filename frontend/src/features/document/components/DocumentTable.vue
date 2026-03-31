@@ -147,7 +147,7 @@ const currentUser = computed(() => authStore.user)
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 const { data: folderTree } = useQuery({
-  queryKey: ['folders', 'tree'],
+  queryKey: computed(() => ['folders', 'tree', currentUserId.value]),
   queryFn: getFolderTree,
   enabled: computed(() => props.scope === 'mine'),
 })
@@ -172,8 +172,6 @@ const selectedFolderIdForQuery = computed(() => {
 
 watch(currentUserId, (nextUserId) => {
   if (nextUserId != null && uiStore.folderContextUserId !== nextUserId) {
-    queryClient.removeQueries({ queryKey: ['documents'] })
-    queryClient.removeQueries({ queryKey: ['folders', 'tree'] })
     uiStore.syncFolderContextForUser(nextUserId)
     currentPage.value = 1
   }
@@ -182,6 +180,7 @@ watch(currentUserId, (nextUserId) => {
 const query = useQuery({
   queryKey: computed(() => [
     'documents',
+    currentUserId.value,
     props.scope,
     currentPage.value,
     pageSize.value,

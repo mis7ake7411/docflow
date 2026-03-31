@@ -89,7 +89,7 @@ test.describe('文件與資料夾權限 UI', () => {
     await logout(page)
 
     await login(page, otherUser, otherPass)
-    await page.getByRole('link', { name: '我的文件' }).click()
+    await page.getByRole('link', { name: '我 我的文件' }).click()
 
     await expect(page.getByRole('heading', { name: '自己的資料夾' })).toBeVisible()
     await expect(page.getByText('目前沒有自己的資料夾')).toBeVisible()
@@ -104,13 +104,13 @@ test.describe('文件與資料夾權限 UI', () => {
 
     await login(page, ownerUser, ownerPass)
     await createFolder(page, folderName)
-    await page.getByText(folderName, { exact: true }).click()
+    await page.locator('.node-name', { hasText: folderName }).first().click()
     await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
     await page.getByRole('link', { name: '分享文件' }).click()
     await logout(page)
 
     await login(page, otherUser, otherPass)
-    await page.getByRole('link', { name: '我的文件' }).click()
+    await page.getByRole('link', { name: '我 我的文件' }).click()
 
     await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toHaveCount(0)
     await expect(page.getByText('顯示自己的文件')).toBeVisible()
@@ -126,10 +126,10 @@ test.describe('文件與資料夾權限 UI', () => {
 
     await login(page, ownerUser, ownerPass)
     await createFolder(page, folderName)
-    await page.getByText(folderName, { exact: true }).click()
+    await page.locator('.node-name', { hasText: folderName }).first().click()
     await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
     await page.getByRole('link', { name: '分享文件' }).click()
-    await page.getByRole('link', { name: '我的文件' }).click()
+    await page.locator('a.nav-link[href="/app/files"]').click()
     await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
     await expect(page.getByText('顯示自己的文件')).toHaveCount(0)
 
@@ -137,7 +137,7 @@ test.describe('文件與資料夾權限 UI', () => {
     await expect(page.getByText('顯示自己的文件')).toBeVisible()
 
     await createDocumentAndOpenDetail(page, documentTitle, 'permission-e2e')
-    await page.getByRole('link', { name: '我的文件' }).click()
+    await page.locator('a.nav-link[href="/app/files"]').click()
 
     const row = page.locator('.el-table__body-wrapper tbody tr').filter({ hasText: documentTitle }).first()
     await expect(row).toBeVisible()

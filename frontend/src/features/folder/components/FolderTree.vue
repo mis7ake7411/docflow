@@ -93,9 +93,11 @@ const queryClient = useQueryClient()
 const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editingFolder = ref<FolderTreeNode | null>(null)
+const currentUser = computed(() => authStore.user)
+const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 const { data, isLoading, error, isSuccess } = useQuery({
-  queryKey: ['folders', 'tree'],
+  queryKey: computed(() => ['folders', 'tree', currentUserId.value]),
   queryFn: getFolderTree,
 })
 
@@ -137,8 +139,6 @@ const selectedFolderId = computed(() => uiStore.selectedFolderId)
 
 const totalCount = computed(() => countNodes(treeData.value))
 const isManager = computed(() => authStore.userRole === 'MANAGER')
-const currentUser = computed(() => authStore.user)
-const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 watch(isSuccess, (ready) => {
   uiStore.setFolderTreeReady(ready)
@@ -150,7 +150,6 @@ watch(currentUserId, (nextUserId) => {
   }
 
   if (uiStore.folderContextUserId !== nextUserId) {
-    queryClient.removeQueries({ queryKey: ['folders', 'tree'] })
     uiStore.syncFolderContextForUser(nextUserId)
   }
 }, { immediate: true })

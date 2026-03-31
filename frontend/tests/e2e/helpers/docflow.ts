@@ -13,8 +13,8 @@ export type AccountPair = {
 
 export async function login(page: Page, username: string, password: string) {
   await page.goto('/login')
-  await page.getByPlaceholder('請輸入帳號').fill(username)
-  await page.getByPlaceholder('請輸入密碼').fill(password)
+  await page.getByRole('textbox', { name: '帳號' }).fill(username)
+  await page.getByRole('textbox', { name: '密碼' }).fill(password)
   await page.getByRole('button', { name: '登入' }).click()
   await expect(page).toHaveURL(/\/app/)
 }
@@ -23,9 +23,9 @@ export async function register(page: Page, username: string, password: string) {
   await page.goto('/login')
   await page.getByRole('link', { name: '註冊' }).click()
   await expect(page).toHaveURL(/\/register/)
-  await page.getByPlaceholder('請輸入帳號').fill(username)
-  await page.getByPlaceholder('請輸入 Email').fill(`${username}@example.com`)
-  await page.getByPlaceholder('請輸入密碼').fill(password)
+  await page.getByRole('textbox', { name: '帳號' }).fill(username)
+  await page.getByRole('textbox', { name: 'Email' }).fill(`${username}@example.com`)
+  await page.getByRole('textbox', { name: '密碼' }).fill(password)
   await page.getByRole('button', { name: '建立帳號' }).click()
   await expect(page).toHaveURL(/\/app/)
 }
@@ -36,9 +36,10 @@ export async function logout(page: Page) {
 }
 
 export async function createAccounts(page: Page, prefix: string, suffix: string): Promise<AccountPair> {
-  const ownerUser = `${prefix}-owner-${suffix}`
+  const uniqueSuffix = `${suffix}-${Math.random().toString(36).slice(2, 8)}`
+  const ownerUser = `${prefix}-owner-${uniqueSuffix}`
   const ownerPass = `Owner${suffix}A1`
-  const otherUser = `${prefix}-peer-${suffix}`
+  const otherUser = `${prefix}-peer-${uniqueSuffix}`
   const otherPass = `Peer${suffix}B1`
 
   await register(page, ownerUser, ownerPass)
@@ -50,7 +51,7 @@ export async function createAccounts(page: Page, prefix: string, suffix: string)
 }
 
 export async function createDocumentAndOpenDetail(page: Page, title: string, description = 'e2e') {
-  await page.getByRole('link', { name: '我的文件' }).click()
+  await page.locator('a.nav-link[href="/app/files"]').click()
   await expect(page).toHaveURL(/\/app\/files/)
   await page.getByRole('button', { name: '新增文件' }).click()
   await page.getByRole('textbox', { name: '標題' }).fill(title)
@@ -66,7 +67,7 @@ export async function createDocumentAndOpenDetail(page: Page, title: string, des
 
 export async function createShareByUi(page: Page, targetUsername: string) {
   await page.getByRole('button', { name: '分享' }).click()
-  const searchInput = page.getByRole('textbox', { name: '輸入帳號或 Email' })
+  const searchInput = page.getByPlaceholder('輸入帳號或 Email')
   await searchInput.fill(targetUsername)
   await page.getByRole('button', { name: '搜尋' }).click()
 
@@ -88,7 +89,7 @@ export async function updateSharePermissionByApi(
   username: string,
   permission: SharePermission,
 ) {
-  await page.evaluate(
+  return page.evaluate(
     async ({ apiBaseUrl, documentId, username, permission }) => {
       const token = window.localStorage.getItem('docflow.accessToken')
       if (!token) throw new Error('missing access token')
@@ -152,12 +153,12 @@ export async function createShareByApiExpectStatus(
 
 export async function assertActivityEntry(page: Page, pattern: RegExp) {
   await page.goto('/app')
-  await expect(page.locator('h3', { hasText: '活動紀錄' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '活動紀錄' })).toBeVisible()
   await expect(page.getByText(pattern)).toBeVisible()
 }
 
 export async function createFolder(page: Page, folderName: string) {
-  await page.getByRole('link', { name: '我的文件' }).click()
+  await page.locator('a.nav-link[href="/app/files"]').click()
   await expect(page).toHaveURL(/\/app\/files/)
   await page.getByRole('button', { name: '新增資料夾' }).click()
   await page.getByRole('textbox', { name: '名稱' }).fill(folderName)
