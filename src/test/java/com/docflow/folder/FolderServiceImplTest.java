@@ -6,6 +6,7 @@ import com.docflow.common.exception.ForbiddenException;
 import com.docflow.common.security.DocflowUserPrincipal;
 import com.docflow.folder.dto.CreateFolderRequest;
 import com.docflow.folder.dto.FolderResponse;
+import com.docflow.folder.dto.FolderTreeResponse;
 import com.docflow.folder.dto.ReorderFoldersRequest;
 import com.docflow.folder.dto.UpdateFolderRequest;
 import com.docflow.folder.entity.Folder;
@@ -96,6 +97,56 @@ class FolderServiceImplTest {
 
         assertThat(response.getSortOrder()).isEqualTo(7);
         assertThat(response.getParentId()).isEqualTo(5L);
+    }
+
+    @Test
+    void getTreeShouldOnlyReturnCurrentUsersFoldersForUser() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder mineRoot = buildFolder(1L, "Mine Root", null, 0, 1L);
+        Folder mineChild = buildFolder(3L, "Mine Child", mineRoot, 0, 1L);
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(1L))
+                .thenReturn(List.of(mineRoot, mineChild));
+
+        List<FolderTreeResponse> tree = folderService.getTree();
+
+        assertThat(tree).extracting(FolderTreeResponse::getId).containsExactly(1L);
+        assertThat(tree.get(0).getChildren()).extracting(FolderTreeResponse::getId).containsExactly(3L);
+        Mockito.verify(folderRepository).findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(1L);
+        Mockito.verify(folderRepository, Mockito.never()).findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
+    }
+
+    @Test
+    void getTreeShouldPromoteOrphanUserFolderToRootWhenParentBelongsToAnotherUser() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder foreignParent = buildFolder(2L, "Foreign Parent", null, 0, 2L);
+        Folder mineRoot = buildFolder(1L, "Mine Root", null, 0, 1L);
+        Folder mineOrphanChild = buildFolder(3L, "Mine Orphan Child", foreignParent, 0, 1L);
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(1L))
+                .thenReturn(List.of(mineRoot, mineOrphanChild));
+
+        List<FolderTreeResponse> tree = folderService.getTree();
+
+        assertThat(tree).extracting(FolderTreeResponse::getId).containsExactly(1L, 3L);
+        assertThat(tree.get(0).getChildren()).isEmpty();
+        assertThat(tree.get(1).getChildren()).isEmpty();
+    }
+
+    @Test
+    void getTreeShouldReturnFullTreeForAdminAndManager() {
+        Folder mineRoot = buildFolder(1L, "Mine Root", null, 0, 1L);
+        Folder mineChild = buildFolder(3L, "Mine Child", mineRoot, 0, 1L);
+        Folder otherRoot = buildFolder(2L, "Other Root", null, 1, 2L);
+        Folder otherChild = buildFolder(4L, "Other Child", otherRoot, 0, 2L);
+        Mockito.when(folderRepository.findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc())
+                .thenReturn(List.of(mineRoot, mineChild, otherRoot, otherChild));
+
+        setCurrentUser(1L, UserRole.ADMIN);
+        assertFullTree(folderService.getTree());
+
+        setCurrentUser(1L, UserRole.MANAGER);
+        assertFullTree(folderService.getTree());
+        Mockito.verify(folderRepository, Mockito.times(2)).findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
+        Mockito.verify(folderRepository, Mockito.never()).findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(Mockito.anyLong());
     }
 
     @Test
@@ -197,6 +248,12 @@ class FolderServiceImplTest {
                 .updatedAt(LocalDateTime.now())
                 .deletedFlag(false)
                 .build();
+    }
+
+    private void assertFullTree(List<FolderTreeResponse> tree) {
+        assertThat(tree).extracting(FolderTreeResponse::getId).containsExactly(1L, 2L);
+        assertThat(tree.get(0).getChildren()).extracting(FolderTreeResponse::getId).containsExactly(3L);
+        assertThat(tree.get(1).getChildren()).extracting(FolderTreeResponse::getId).containsExactly(4L);
     }
 
     private User buildUser(Long id, UserRole role) {

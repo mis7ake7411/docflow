@@ -78,14 +78,21 @@ public class FolderServiceImpl implements FolderService {
     @Transactional(readOnly = true)
     public List<FolderTreeResponse> getTree() {
         log.debug("Loading folder tree");
-        List<Folder> folders = folderRepository.findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
+        User currentUser = getCurrentUser();
+        List<Folder> folders = loadFoldersForTree(currentUser);
+        Map<Long, Folder> folderById = folders.stream()
+                .filter(folder -> folder.getId() != null)
+                .collect(Collectors.toMap(Folder::getId, folder -> folder));
         Map<Long, List<Folder>> childrenMap = folders.stream()
                 .filter(folder -> folder.getParent() != null)
                 .collect(Collectors.groupingBy(folder -> folder.getParent().getId()));
-
-        return folders.stream()
-                .filter(folder -> folder.getParent() == null)
+        List<Folder> rootFolders = folders.stream()
+                .filter(folder -> folder.getParent() == null
+                        || !folderById.containsKey(folder.getParent().getId()))
                 .sorted(Comparator.comparing(Folder::getSortOrder).thenComparing(Folder::getId))
+                .toList();
+
+        return rootFolders.stream()
                 .map(folder -> toTreeResponse(folder, childrenMap))
                 .toList();
     }
@@ -211,6 +218,17 @@ public class FolderServiceImpl implements FolderService {
             return false;
         }
         return currentParent.getId() != null && currentParent.getId().equals(nextParent.getId());
+    }
+
+    private boolean canSeeAllFolders(User currentUser) {
+        return currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.MANAGER;
+    }
+
+    private List<Folder> loadFoldersForTree(User currentUser) {
+        if (canSeeAllFolders(currentUser)) {
+            return folderRepository.findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
+        }
+        return folderRepository.findAllByDeletedFlagFalseAndCreatedByIdOrderBySortOrderAscIdAsc(currentUser.getId());
     }
 
     private List<Folder> loadSiblings(Long parentId) {
