@@ -76,6 +76,8 @@ import { useAuthStore } from '@/stores/auth'
 import { canModifyResource, isAdminOrManager, PERMISSION_MESSAGES } from '@/shared/utils/permission'
 import { isAxiosError } from 'axios'
 
+type DropType = 'prev' | 'inner' | 'next'
+
 type TreeNodeLike = {
   data: FolderTreeNode
   parent: {
@@ -173,21 +175,38 @@ function allowDrag(node: TreeNodeLike) {
   return canReorderSiblingGroup(node.data.parentId)
 }
 
-function allowDrop(draggingNode: TreeNodeLike, dropNode: TreeNodeLike, type: 'prev' | 'inner' | 'next') {
+function allowDrop(draggingNode: TreeNodeLike, dropNode: TreeNodeLike, type: DropType) {
   return type !== 'inner'
     && draggingNode.data.parentId === dropNode.data.parentId
     && canReorderSiblingGroup(draggingNode.data.parentId)
 }
 
-async function handleNodeDrop(_draggingNode: TreeNodeLike, dropNode: TreeNodeLike) {
+async function handleNodeDrop(
+  draggingNode: TreeNodeLike,
+  dropNode: TreeNodeLike,
+  dropType: DropType,
+) {
+  if (dropType === 'inner') {
+    return
+  }
+
   const parentId = dropNode.data.parentId
-  const siblings = dropNode.parent.level === 0
-    ? treeData.value
-    : (dropNode.parent.data?.children ?? [])
+  const siblings = getSiblingGroup(parentId)
+  const currentOrder = siblings.map((folder) => folder.id)
+  const orderedFolderIds = buildReorderedIds(
+    currentOrder,
+    draggingNode.data.id,
+    dropNode.data.id,
+    dropType,
+  )
+
+  if (hasSameOrder(currentOrder, orderedFolderIds)) {
+    return
+  }
 
   await reorderMutation.mutateAsync({
     parentId,
-    orderedFolderIds: siblings.map((folder) => folder.id),
+    orderedFolderIds,
   })
 }
 
@@ -201,6 +220,34 @@ function getSiblingGroup(parentId: number | null): FolderTreeNode[] {
   }
   const parent = findNodeById(treeData.value, parentId)
   return parent?.children ?? []
+}
+
+function buildReorderedIds(
+  currentOrder: number[],
+  draggedId: number,
+  targetId: number,
+  dropType: Exclude<DropType, 'inner'>,
+): number[] {
+  if (draggedId === targetId) {
+    return currentOrder
+  }
+
+  const remainingIds = currentOrder.filter((id) => id !== draggedId)
+  const targetIndex = remainingIds.indexOf(targetId)
+
+  if (targetIndex === -1) {
+    return currentOrder
+  }
+
+  const insertIndex = dropType === 'prev' ? targetIndex : targetIndex + 1
+  const reorderedIds = [...remainingIds]
+  reorderedIds.splice(insertIndex, 0, draggedId)
+  return reorderedIds
+}
+
+function hasSameOrder(currentOrder: number[], nextOrder: number[]) {
+  return currentOrder.length === nextOrder.length
+    && currentOrder.every((id, index) => id === nextOrder[index])
 }
 
 function countNodes(nodes: FolderTreeNode[]): number {
