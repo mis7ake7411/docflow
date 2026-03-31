@@ -76,6 +76,27 @@ class FolderServiceImplTest {
     }
 
     @Test
+    void createShouldAllowFirstRootFolderWhenNoFoldersExist() {
+        setCurrentUser(1L, UserRole.USER);
+        CreateFolderRequest request = new CreateFolderRequest();
+        request.setName("Root");
+        request.setParentId(null);
+        Mockito.when(folderRepository.findTopByDeletedFlagFalseAndParentIsNullOrderBySortOrderDescIdDesc())
+                .thenReturn(Optional.empty());
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> {
+                    Folder folder = invocation.getArgument(0);
+                    folder.setId(11L);
+                    return folder;
+                });
+
+        FolderResponse response = folderService.create(request);
+
+        assertThat(response.getSortOrder()).isEqualTo(0);
+        assertThat(response.getParentId()).isNull();
+    }
+
+    @Test
     void createShouldAssignNextSortOrderForChildFolder() {
         setCurrentUser(1L, UserRole.USER);
         Folder parent = buildFolder(5L, "Parent", null, 0, 1L);
@@ -97,6 +118,70 @@ class FolderServiceImplTest {
 
         assertThat(response.getSortOrder()).isEqualTo(7);
         assertThat(response.getParentId()).isEqualTo(5L);
+    }
+
+    @Test
+    void createShouldRejectWhenUserCreatesFolderUnderAnotherUsersParent() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder foreignParent = buildFolder(5L, "Parent", null, 0, 2L);
+        CreateFolderRequest request = new CreateFolderRequest();
+        request.setName("Child");
+        request.setParentId(5L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(5L))
+                .thenReturn(Optional.of(foreignParent));
+
+        assertThatThrownBy(() -> folderService.create(request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("無權限操作此資料夾");
+        Mockito.verify(folderRepository, Mockito.never()).save(Mockito.any(Folder.class));
+    }
+
+    @Test
+    void createShouldAllowAdminToCreateFolderUnderAnotherUsersParent() {
+        setCurrentUser(1L, UserRole.ADMIN);
+        Folder foreignParent = buildFolder(5L, "Parent", null, 0, 2L);
+        CreateFolderRequest request = new CreateFolderRequest();
+        request.setName("Child");
+        request.setParentId(5L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(5L))
+                .thenReturn(Optional.of(foreignParent));
+        Mockito.when(folderRepository.findTopByDeletedFlagFalseAndParentIdOrderBySortOrderDescIdDesc(5L))
+                .thenReturn(Optional.empty());
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> {
+                    Folder folder = invocation.getArgument(0);
+                    folder.setId(12L);
+                    return folder;
+                });
+
+        FolderResponse response = folderService.create(request);
+
+        assertThat(response.getParentId()).isEqualTo(5L);
+        assertThat(response.getSortOrder()).isEqualTo(0);
+    }
+
+    @Test
+    void createShouldAllowManagerToCreateFolderUnderAnotherUsersParent() {
+        setCurrentUser(1L, UserRole.MANAGER);
+        Folder foreignParent = buildFolder(5L, "Parent", null, 0, 2L);
+        CreateFolderRequest request = new CreateFolderRequest();
+        request.setName("Child");
+        request.setParentId(5L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(5L))
+                .thenReturn(Optional.of(foreignParent));
+        Mockito.when(folderRepository.findTopByDeletedFlagFalseAndParentIdOrderBySortOrderDescIdDesc(5L))
+                .thenReturn(Optional.empty());
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> {
+                    Folder folder = invocation.getArgument(0);
+                    folder.setId(13L);
+                    return folder;
+                });
+
+        FolderResponse response = folderService.create(request);
+
+        assertThat(response.getParentId()).isEqualTo(5L);
+        assertThat(response.getSortOrder()).isEqualTo(0);
     }
 
     @Test
@@ -201,7 +286,8 @@ class FolderServiceImplTest {
                 .thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> folderService.reorder(request))
-                .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("無權限操作此資料夾");
     }
 
     @Test
@@ -226,6 +312,109 @@ class FolderServiceImplTest {
 
         assertThat(response.getParentId()).isEqualTo(6L);
         assertThat(response.getSortOrder()).isEqualTo(5);
+    }
+
+    @Test
+    void updateShouldAllowOrphanFolderRenameWithoutChangingForeignParent() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder foreignParent = buildFolder(6L, "Foreign Parent", null, 0, 2L);
+        Folder folder = buildFolder(1L, "Orphan", foreignParent, 2, 1L);
+        UpdateFolderRequest request = new UpdateFolderRequest();
+        request.setName("Renamed");
+        request.setParentId(6L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(6L))
+                .thenReturn(Optional.of(foreignParent));
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        FolderResponse response = folderService.update(1L, request);
+
+        assertThat(response.getName()).isEqualTo("Renamed");
+        assertThat(response.getParentId()).isEqualTo(6L);
+    }
+
+    @Test
+    void updateShouldRejectWhenUserMovesOwnFolderUnderAnotherUsersParent() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder currentParent = buildFolder(5L, "Current Parent", null, 0, 1L);
+        Folder nextParent = buildFolder(6L, "Next Parent", null, 1, 2L);
+        Folder folder = buildFolder(1L, "Child", currentParent, 2, 1L);
+        UpdateFolderRequest request = new UpdateFolderRequest();
+        request.setName("Child");
+        request.setParentId(6L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(6L))
+                .thenReturn(Optional.of(nextParent));
+
+        assertThatThrownBy(() -> folderService.update(1L, request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("無權限操作此資料夾");
+        Mockito.verify(folderRepository, Mockito.never()).save(Mockito.any(Folder.class));
+    }
+
+    @Test
+    void updateShouldRejectWhenUserEditsAnotherUsersFolder() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder folder = buildFolder(1L, "Foreign", null, 0, 2L);
+        UpdateFolderRequest request = new UpdateFolderRequest();
+        request.setName("Updated");
+        request.setParentId(null);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+
+        assertThatThrownBy(() -> folderService.update(1L, request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("無權限操作此資料夾");
+        Mockito.verify(folderRepository, Mockito.never()).save(Mockito.any(Folder.class));
+    }
+
+    @Test
+    void updateShouldAllowManagerToEditAnotherUsersFolder() {
+        setCurrentUser(1L, UserRole.MANAGER);
+        Folder folder = buildFolder(1L, "Foreign", null, 0, 2L);
+        UpdateFolderRequest request = new UpdateFolderRequest();
+        request.setName("Updated");
+        request.setParentId(null);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        FolderResponse response = folderService.update(1L, request);
+
+        assertThat(response.getName()).isEqualTo("Updated");
+    }
+
+    @Test
+    void deleteShouldRejectWhenUserDeletesAnotherUsersFolder() {
+        setCurrentUser(1L, UserRole.USER);
+        Folder folder = buildFolder(1L, "Foreign", null, 0, 2L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+
+        assertThatThrownBy(() -> folderService.delete(1L))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("無權限操作此資料夾");
+        Mockito.verify(folderRepository, Mockito.never()).save(Mockito.any(Folder.class));
+    }
+
+    @Test
+    void deleteShouldAllowManagerToDeleteAnotherUsersFolder() {
+        setCurrentUser(1L, UserRole.MANAGER);
+        Folder folder = buildFolder(1L, "Foreign", null, 0, 2L);
+        Mockito.when(folderRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.of(folder));
+        Mockito.when(folderRepository.existsByParentIdAndDeletedFlagFalse(1L))
+                .thenReturn(false);
+        Mockito.when(folderRepository.save(Mockito.any(Folder.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        folderService.delete(1L);
+
+        Mockito.verify(folderRepository).save(Mockito.any(Folder.class));
     }
 
     private void setCurrentUser(Long userId, UserRole role) {

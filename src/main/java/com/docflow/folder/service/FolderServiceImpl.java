@@ -51,6 +51,7 @@ public class FolderServiceImpl implements FolderService {
         log.info("Creating folder: name={}, parentId={}", request.getName(), request.getParentId());
         User currentUser = getCurrentUser();
         Folder parent = resolveParent(request.getParentId());
+        assertCanUseParent(currentUser, parent);
 
         Folder folder = Folder.builder()
                 .name(request.getName())
@@ -110,12 +111,17 @@ public class FolderServiceImpl implements FolderService {
         log.info("Updating folder: folderId={}, name={}, parentId={}", id, request.getName(), request.getParentId());
         Folder folder = folderRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
+        User currentUser = getCurrentUser();
+        assertCanModifyFolder(currentUser, folder);
 
         Folder parent = resolveParent(request.getParentId());
         if (parent != null && parent.getId().equals(folder.getId())) {
             throw new BadRequestException("Folder cannot be its own parent");
         }
         boolean parentChanged = !sameParent(folder.getParent(), parent);
+        if (parentChanged) {
+            assertCanUseParent(currentUser, parent);
+        }
 
         folder.setName(request.getName());
         folder.setParent(parent);
@@ -162,6 +168,8 @@ public class FolderServiceImpl implements FolderService {
         log.info("Deleting folder: folderId={}", id);
         Folder folder = folderRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
+        User currentUser = getCurrentUser();
+        assertCanModifyFolder(currentUser, folder);
 
         if (folderRepository.existsByParentIdAndDeletedFlagFalse(id)) {
             log.warn("Folder deletion rejected due to active children: folderId={}", id);
@@ -222,6 +230,28 @@ public class FolderServiceImpl implements FolderService {
 
     private boolean canSeeAllFolders(User currentUser) {
         return currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.MANAGER;
+    }
+
+    private void assertCanModifyFolder(User currentUser, Folder folder) {
+        if (canSeeAllFolders(currentUser)) {
+            return;
+        }
+        if (folder.getCreatedBy() == null
+                || folder.getCreatedBy().getId() == null
+                || !folder.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
+    }
+
+    private void assertCanUseParent(User currentUser, Folder parent) {
+        if (parent == null || canSeeAllFolders(currentUser)) {
+            return;
+        }
+        if (parent.getCreatedBy() == null
+                || parent.getCreatedBy().getId() == null
+                || !parent.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
     }
 
     private List<Folder> loadFoldersForTree(User currentUser) {
