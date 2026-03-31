@@ -1,6 +1,7 @@
 package com.docflow.document;
 
 import com.docflow.activity.service.ActivityLogService;
+import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.exception.ForbiddenException;
 import com.docflow.common.security.DocflowUserPrincipal;
 import com.docflow.document.dto.DocumentResponse;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.core.io.ByteArrayResource;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
@@ -34,6 +36,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceImplPermissionTest {
@@ -265,13 +269,55 @@ class DocumentServiceImplPermissionTest {
                 .hasMessage("無權限操作此文件");
     }
 
+    @Test
+    void getByIdShouldRecordRecentViewWhenDocumentExists() {
+        setCurrentUser(2L, UserRole.USER);
+        DocumentResponse cachedResponse = buildDocumentResponse(1L);
+        Mockito.when(documentCacheService.getDocumentDetail(1L))
+                .thenReturn(Optional.of(cachedResponse));
+
+        DocumentResponse response = documentService.getById(1L);
+
+        assertThat(response).isSameAs(cachedResponse);
+        verify(documentCacheService).recordDocumentView(2L, cachedResponse);
+    }
+
+    @Test
+    void getByIdShouldNotRecordRecentViewWhenDocumentDoesNotExist() {
+        setCurrentUser(2L, UserRole.USER);
+        Mockito.when(documentCacheService.getDocumentDetail(1L))
+                .thenReturn(Optional.empty());
+        Mockito.when(documentRepository.findByIdAndDeletedFlagFalse(1L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.getById(1L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Document not found");
+
+        verify(documentCacheService, never()).recordDocumentView(Mockito.anyLong(), Mockito.any());
+    }
+
+    @Test
+    void downloadShouldRecordRecentViewOnlyOnce() {
+        setCurrentUser(2L, UserRole.USER);
+        DocumentResponse cachedResponse = buildDocumentResponse(1L, "doc.txt", "stored-doc.txt");
+        Mockito.when(documentCacheService.getDocumentDetail(1L))
+                .thenReturn(Optional.of(cachedResponse));
+        Mockito.when(localFileStorageService.loadAsResource("stored-doc.txt"))
+                .thenReturn(new ByteArrayResource("content".getBytes()));
+
+        documentService.download(1L);
+
+        verify(documentCacheService, Mockito.times(1)).recordDocumentView(2L, cachedResponse);
+    }
+
     private void setCurrentUser(Long userId, UserRole role) {
         User user = buildUser(userId, role);
         DocflowUserPrincipal principal = new DocflowUserPrincipal(user);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
         );
-        Mockito.when(userRepository.findById(userId))
+        Mockito.lenient().when(userRepository.findById(userId))
                 .thenReturn(Optional.of(user));
     }
 
@@ -305,6 +351,23 @@ class DocumentServiceImplPermissionTest {
         request.setDescription("New Description");
         request.setStatus("ACTIVE");
         return request;
+    }
+
+    private DocumentResponse buildDocumentResponse(Long documentId) {
+        return buildDocumentResponse(documentId, null, null);
+    }
+
+    private DocumentResponse buildDocumentResponse(Long documentId, String fileName, String storedFileName) {
+        return DocumentResponse.builder()
+                .id(documentId)
+                .title("Doc")
+                .description("Desc")
+                .fileName(fileName)
+                .storedFileName(storedFileName)
+                .version(1)
+                .status(DocumentStatus.ACTIVE.name())
+                .createdBy(1L)
+                .build();
     }
 
     private MultipartFile buildMultipartFile() {

@@ -161,13 +161,15 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(readOnly = true)
     public DocumentResponse getById(Long id) {
         log.debug("Loading document detail: documentId={}", id);
-        return documentCacheService.getDocumentDetail(id)
+        DocumentResponse response = documentCacheService.getDocumentDetail(id)
                 .orElseGet(() -> {
                     log.debug("Document cache miss: documentId={}", id);
-                    DocumentResponse response = toResponse(getActiveDocument(id));
-                    documentCacheService.cacheDocumentDetail(id, response);
-                    return response;
+                    DocumentResponse loadedResponse = toResponse(getActiveDocument(id));
+                    documentCacheService.cacheDocumentDetail(id, loadedResponse);
+                    return loadedResponse;
                 });
+        documentCacheService.recordDocumentView(getCurrentUser().getId(), response);
+        return response;
     }
 
     /**
@@ -242,7 +244,6 @@ public class DocumentServiceImpl implements DocumentService {
             throw new BadRequestException("Document file has not been uploaded");
         }
         Long currentUserId = getCurrentUser().getId();
-        documentCacheService.recordDocumentView(currentUserId, response);
         activityLogService.log(currentUserId, "DOCUMENT", response.getId(), "DOWNLOAD", java.util.Map.of(
                 "fileName", response.getFileName(),
                 "version", response.getVersion()
