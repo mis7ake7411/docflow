@@ -3,6 +3,7 @@ package com.docflow.folder.service;
 import com.docflow.folder.dto.CreateFolderRequest;
 import com.docflow.folder.dto.FolderResponse;
 import com.docflow.folder.dto.FolderTreeResponse;
+import com.docflow.folder.dto.ReorderFoldersRequest;
 import com.docflow.folder.dto.UpdateFolderRequest;
 
 import java.util.List;
@@ -35,6 +36,8 @@ public interface FolderService {
      * @return 更新後的資料夾資訊
      */
     FolderResponse update(Long id, UpdateFolderRequest request);
+
+    void reorder(ReorderFoldersRequest request);
 
     /**
      * 刪除指定資料夾。

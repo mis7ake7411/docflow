@@ -2,14 +2,17 @@ package com.docflow.folder.service;
 
 import com.docflow.activity.service.ActivityLogService;
 import com.docflow.common.exception.BadRequestException;
+import com.docflow.common.exception.ForbiddenException;
 import com.docflow.common.security.SecurityUtils;
 import com.docflow.folder.dto.CreateFolderRequest;
 import com.docflow.folder.dto.FolderResponse;
 import com.docflow.folder.dto.FolderTreeResponse;
+import com.docflow.folder.dto.ReorderFoldersRequest;
 import com.docflow.folder.dto.UpdateFolderRequest;
 import com.docflow.folder.entity.Folder;
 import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
+import com.docflow.user.entity.UserRole;
 import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -44,15 +48,14 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional
     public FolderResponse create(CreateFolderRequest request) {
-        log.info("Creating folder: name={}, parentId={}, sortOrder={}",
-                request.getName(), request.getParentId(), request.getSortOrder());
+        log.info("Creating folder: name={}, parentId={}", request.getName(), request.getParentId());
         User currentUser = getCurrentUser();
         Folder parent = resolveParent(request.getParentId());
 
         Folder folder = Folder.builder()
                 .name(request.getName())
                 .parent(parent)
-                .sortOrder(request.getSortOrder())
+                .sortOrder(nextSortOrder(parent))
                 .createdBy(currentUser)
                 .deletedFlag(false)
                 .build();
@@ -97,8 +100,7 @@ public class FolderServiceImpl implements FolderService {
     @Override
     @Transactional
     public FolderResponse update(Long id, UpdateFolderRequest request) {
-        log.info("Updating folder: folderId={}, name={}, parentId={}, sortOrder={}",
-                id, request.getName(), request.getParentId(), request.getSortOrder());
+        log.info("Updating folder: folderId={}, name={}, parentId={}", id, request.getName(), request.getParentId());
         Folder folder = folderRepository.findByIdAndDeletedFlagFalse(id)
                 .orElseThrow(() -> new BadRequestException("Folder not found"));
 
@@ -106,19 +108,40 @@ public class FolderServiceImpl implements FolderService {
         if (parent != null && parent.getId().equals(folder.getId())) {
             throw new BadRequestException("Folder cannot be its own parent");
         }
+        boolean parentChanged = !sameParent(folder.getParent(), parent);
 
         folder.setName(request.getName());
         folder.setParent(parent);
-        folder.setSortOrder(request.getSortOrder());
+        if (parentChanged) {
+            folder.setSortOrder(nextSortOrder(parent));
+        }
 
         Folder saved = folderRepository.save(folder);
         log.info("Folder updated successfully: folderId={}", saved.getId());
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("name", saved.getName());
         detail.put("parentId", saved.getParent() != null ? saved.getParent().getId() : null);
-        detail.put("sortOrder", saved.getSortOrder());
         activityLogService.log(getCurrentUser().getId(), "FOLDER", saved.getId(), "UPDATE", detail);
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void reorder(ReorderFoldersRequest request) {
+        User currentUser = getCurrentUser();
+        List<Folder> siblings = loadSiblings(request.getParentId());
+        validateReorderRequest(request.getOrderedFolderIds(), siblings);
+        assertCanReorderSiblings(currentUser, siblings);
+
+        Map<Long, Folder> folderMap = siblings.stream()
+                .collect(Collectors.toMap(Folder::getId, folder -> folder));
+        List<Folder> reordered = new ArrayList<>();
+        for (int index = 0; index < request.getOrderedFolderIds().size(); index++) {
+            Folder folder = folderMap.get(request.getOrderedFolderIds().get(index));
+            folder.setSortOrder(index);
+            reordered.add(folder);
+        }
+        folderRepository.saveAll(reordered);
     }
 
     /**
@@ -171,6 +194,53 @@ public class FolderServiceImpl implements FolderService {
         log.debug("Resolving parent folder: parentId={}", parentId);
         return folderRepository.findByIdAndDeletedFlagFalse(parentId)
                 .orElseThrow(() -> new BadRequestException("Parent folder not found"));
+    }
+
+    private int nextSortOrder(Folder parent) {
+        Optional<Folder> lastFolder = parent == null
+                ? folderRepository.findTopByDeletedFlagFalseAndParentIsNullOrderBySortOrderDescIdDesc()
+                : folderRepository.findTopByDeletedFlagFalseAndParentIdOrderBySortOrderDescIdDesc(parent.getId());
+        return lastFolder.map(folder -> folder.getSortOrder() + 1).orElse(0);
+    }
+
+    private boolean sameParent(Folder currentParent, Folder nextParent) {
+        if (currentParent == null && nextParent == null) {
+            return true;
+        }
+        if (currentParent == null || nextParent == null) {
+            return false;
+        }
+        return currentParent.getId() != null && currentParent.getId().equals(nextParent.getId());
+    }
+
+    private List<Folder> loadSiblings(Long parentId) {
+        return parentId == null
+                ? folderRepository.findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc()
+                : folderRepository.findAllByDeletedFlagFalseAndParentIdOrderBySortOrderAscIdAsc(parentId);
+    }
+
+    private void validateReorderRequest(List<Long> orderedFolderIds, List<Folder> siblings) {
+        if (orderedFolderIds.size() != siblings.size()) {
+            throw new BadRequestException("Reorder request must include the full sibling set");
+        }
+        List<Long> siblingIds = siblings.stream().map(Folder::getId).sorted().toList();
+        List<Long> requestedIds = orderedFolderIds.stream().sorted().toList();
+        if (!siblingIds.equals(requestedIds)) {
+            throw new BadRequestException("Reorder request does not match current sibling set");
+        }
+    }
+
+    private void assertCanReorderSiblings(User currentUser, List<Folder> siblings) {
+        if (currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.MANAGER) {
+            return;
+        }
+        boolean canModifyAll = siblings.stream()
+                .allMatch(folder -> folder.getCreatedBy() != null
+                        && folder.getCreatedBy().getId() != null
+                        && folder.getCreatedBy().getId().equals(currentUser.getId()));
+        if (!canModifyAll) {
+            throw new ForbiddenException("無權限操作此資料夾");
+        }
     }
 
     /**
