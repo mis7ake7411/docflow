@@ -79,10 +79,10 @@ test.describe('文件與資料夾權限 UI', () => {
     await expect(forbiddenStatus).toBe(403)
   })
 
-  test('其他使用者看到 owner 的資料夾時，編輯與刪除按鈕為 disabled', async ({ page }) => {
+  test('其他使用者看不到 owner 的資料夾', async ({ page }) => {
     const suffix = String(Date.now())
     const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
-    const folderName = `E2E-資料夾權限-${suffix}`
+    const folderName = `E2E-私有資料夾-${suffix}`
 
     await login(page, ownerUser, ownerPass)
     await createFolder(page, folderName)
@@ -91,12 +91,55 @@ test.describe('文件與資料夾權限 UI', () => {
     await login(page, otherUser, otherPass)
     await page.getByRole('link', { name: '我的文件' }).click()
 
-    const node = page.locator('.tree-node', {
-      has: page.locator('.node-name', { hasText: folderName }),
-    }).first()
+    await expect(page.getByRole('heading', { name: '自己的資料夾' })).toBeVisible()
+    await expect(page.getByText('目前沒有自己的資料夾')).toBeVisible()
+    await expect(page.locator('.node-name', { hasText: folderName })).toHaveCount(0)
+    await expect(page.getByText(folderName)).toHaveCount(0)
+  })
 
-    await expect(node).toBeVisible()
-    await expect(node.getByRole('button', { name: '編輯' })).toBeDisabled()
-    await expect(node.getByRole('button', { name: '刪除' })).toBeDisabled()
+  test('從非文件頁登出後，下一位使用者不會沿用上一位的資料夾選取', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass, otherUser, otherPass } = await createAccounts(page, 'perm', suffix)
+    const folderName = `E2E-跨帳號選取-${suffix}`
+
+    await login(page, ownerUser, ownerPass)
+    await createFolder(page, folderName)
+    await page.getByText(folderName, { exact: true }).click()
+    await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
+    await page.getByRole('link', { name: '分享文件' }).click()
+    await logout(page)
+
+    await login(page, otherUser, otherPass)
+    await page.getByRole('link', { name: '我的文件' }).click()
+
+    await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toHaveCount(0)
+    await expect(page.getByText('顯示自己的文件')).toBeVisible()
+    await expect(page.getByText(/資料夾 #/)).toHaveCount(0)
+    await expect(page.locator('.node-name', { hasText: folderName })).toHaveCount(0)
+  })
+
+  test('零資料夾時仍可建立第一個根資料夾，且重新進入我的文件不會過早清除有效選取', async ({ page }) => {
+    const suffix = String(Date.now())
+    const { ownerUser, ownerPass } = await createAccounts(page, 'perm', suffix)
+    const folderName = `E2E-根資料夾-${suffix}`
+    const documentTitle = `E2E-自己的文件-${suffix}`
+
+    await login(page, ownerUser, ownerPass)
+    await createFolder(page, folderName)
+    await page.getByText(folderName, { exact: true }).click()
+    await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
+    await page.getByRole('link', { name: '分享文件' }).click()
+    await page.getByRole('link', { name: '我的文件' }).click()
+    await expect(page.getByText(`目前顯示自己的資料夾「${folderName}」的文件`)).toBeVisible()
+    await expect(page.getByText('顯示自己的文件')).toHaveCount(0)
+
+    await page.getByRole('button', { name: '回到全部文件' }).click()
+    await expect(page.getByText('顯示自己的文件')).toBeVisible()
+
+    await createDocumentAndOpenDetail(page, documentTitle, 'permission-e2e')
+    await page.getByRole('link', { name: '我的文件' }).click()
+
+    const row = page.locator('.el-table__body-wrapper tbody tr').filter({ hasText: documentTitle }).first()
+    await expect(row).toBeVisible()
   })
 })

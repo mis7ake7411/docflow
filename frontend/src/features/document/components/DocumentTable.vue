@@ -144,6 +144,40 @@ const pageSize = ref(10)
 const pageSizes = [10, 20, 50]
 
 const currentUser = computed(() => authStore.user)
+const currentUserId = computed(() => currentUser.value?.id ?? null)
+
+const { data: folderTree } = useQuery({
+  queryKey: ['folders', 'tree'],
+  queryFn: getFolderTree,
+  enabled: computed(() => props.scope === 'mine'),
+})
+
+const selectedFolderId = computed(() => uiStore.selectedFolderId)
+const selectedFolderIdForQuery = computed(() => {
+  if (props.scope !== 'mine') {
+    return null
+  }
+
+  const folderId = selectedFolderId.value
+  if (folderId == null) {
+    return null
+  }
+
+  if (!uiStore.folderTreeReady || !folderTree.value) {
+    return folderId
+  }
+
+  return findFolderById(folderTree.value, folderId) ? folderId : null
+})
+
+watch(currentUserId, (nextUserId) => {
+  if (nextUserId != null && uiStore.folderContextUserId !== nextUserId) {
+    queryClient.removeQueries({ queryKey: ['documents'] })
+    queryClient.removeQueries({ queryKey: ['folders', 'tree'] })
+    uiStore.syncFolderContextForUser(nextUserId)
+    currentPage.value = 1
+  }
+}, { immediate: true })
 
 const query = useQuery({
   queryKey: computed(() => [
@@ -151,20 +185,14 @@ const query = useQuery({
     props.scope,
     currentPage.value,
     pageSize.value,
-    props.scope === 'mine' ? uiStore.selectedFolderId : null,
+    selectedFolderIdForQuery.value,
   ]),
   queryFn: () => props.scope === 'shared'
     ? getSharedDocuments(currentPage.value - 1, pageSize.value)
-    : getDocuments(currentPage.value - 1, pageSize.value, uiStore.selectedFolderId),
+    : getDocuments(currentPage.value - 1, pageSize.value, selectedFolderIdForQuery.value),
 })
 
 const { data, isLoading, error } = query
-
-const { data: folderTree } = useQuery({
-  queryKey: ['folders', 'tree'],
-  queryFn: getFolderTree,
-  enabled: computed(() => props.scope === 'mine'),
-})
 
 const deleteMutation = useMutation({
   mutationFn: deleteDocument,
@@ -182,20 +210,20 @@ const deleteMutation = useMutation({
 const items = computed(() => data.value?.items ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
 const selectedFolderName = computed(() => {
-  const folderId = uiStore.selectedFolderId
-  if (!folderId || props.scope !== 'mine' || !folderTree.value) return null
+  const folderId = selectedFolderIdForQuery.value
+  if (!folderId || props.scope !== 'mine' || !uiStore.folderTreeReady || !folderTree.value) return null
   return findFolderName(folderTree.value, folderId)
 })
 
 const sectionDescription = computed(() => {
-  if (props.headerDescription) return props.headerDescription
-  if (props.scope === 'shared') return '顯示其他人分享給你的文件'
-  if (!uiStore.selectedFolderId) return '顯示你建立的文件'
-  const name = selectedFolderName.value ?? uiStore.selectedFolderId
-  return `目前顯示資料夾 #${name} 的文件`
+  if (props.scope === 'shared') return props.headerDescription || '顯示其他人分享給你的文件'
+  if (!selectedFolderId.value) return '顯示自己的文件'
+  if (!uiStore.folderTreeReady) return '正在載入自己的資料夾'
+  const name = selectedFolderName.value
+  return name ? `目前顯示自己的資料夾「${name}」的文件` : '顯示自己的文件'
 })
 
-const emptyDescription = computed(() => props.scope === 'shared' ? '目前沒有分享給你的文件' : '目前沒有文件')
+const emptyDescription = computed(() => props.scope === 'shared' ? '目前沒有分享給你的文件' : '目前沒有自己的文件')
 
 function openDetail(documentId: number) {
   uiStore.setSelectedDocumentId(documentId)
@@ -243,6 +271,21 @@ watch(
   },
 )
 
+watch(
+  [() => uiStore.folderTreeReady, folderTree, selectedFolderId],
+  ([ready, folders, folderId]) => {
+    if (props.scope !== 'mine' || !ready || folderId == null || !folders) {
+      return
+    }
+
+    if (!findFolderById(folders, folderId)) {
+      uiStore.clearSelectedFolderId()
+      currentPage.value = 1
+    }
+  },
+  { immediate: true },
+)
+
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-TW')
 }
@@ -256,6 +299,18 @@ function findFolderName(nodes: FolderTreeNode[], targetId: number): string | nul
     }
   }
   return null
+}
+
+function findFolderById(nodes: FolderTreeNode[], targetId: number): boolean {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return true
+    }
+    if (node.children?.length && findFolderById(node.children, targetId)) {
+      return true
+    }
+  }
+  return false
 }
 </script>
 

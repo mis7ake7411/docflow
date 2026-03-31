@@ -2,8 +2,8 @@
   <div class="folder-panel">
     <div class="section-header">
       <div>
-        <h3>資料夾列表</h3>
-        <p class="muted">共 {{ totalCount }} 個資料夾</p>
+        <h3>自己的資料夾</h3>
+        <p class="muted">共 {{ totalCount }} 個自己的資料夾</p>
       </div>
       <el-button v-if="!isManager" type="primary" @click="openCreateDialog">新增資料夾</el-button>
     </div>
@@ -11,7 +11,7 @@
     <div class="folder-content">
       <el-skeleton v-if="isLoading" :rows="6" animated />
       <el-alert v-else-if="error" title="資料夾樹載入失敗" type="error" show-icon :closable="false" />
-      <el-empty v-else-if="!treeData.length" description="目前沒有資料夾" />
+      <el-empty v-else-if="!treeData.length" description="目前沒有自己的資料夾" />
 
       <el-tree
         v-else
@@ -57,7 +57,7 @@
     </div>
 
     <div class="panel-footer">
-      <button type="button" class="footer-link" @click="handleAllDocuments">顯示全部文件</button>
+      <button type="button" class="footer-link" @click="handleAllDocuments">回到全部文件</button>
     </div>
 
     <FolderFormDialog v-model="createDialogVisible" :folder="null" :tree-data="treeData" />
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { deleteFolder, getFolderTree, reorderFolders, type FolderTreeNode } from '@/features/folder/api'
@@ -94,7 +94,7 @@ const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
 const editingFolder = ref<FolderTreeNode | null>(null)
 
-const { data, isLoading, error } = useQuery({
+const { data, isLoading, error, isSuccess } = useQuery({
   queryKey: ['folders', 'tree'],
   queryFn: getFolderTree,
 })
@@ -133,17 +133,48 @@ const treeProps = {
   children: 'children',
   label: 'name',
 }
+const selectedFolderId = computed(() => uiStore.selectedFolderId)
 
 const totalCount = computed(() => countNodes(treeData.value))
 const isManager = computed(() => authStore.userRole === 'MANAGER')
 const currentUser = computed(() => authStore.user)
+const currentUserId = computed(() => currentUser.value?.id ?? null)
+
+watch(isSuccess, (ready) => {
+  uiStore.setFolderTreeReady(ready)
+}, { immediate: true })
+
+watch(currentUserId, (nextUserId) => {
+  if (nextUserId == null) {
+    return
+  }
+
+  if (uiStore.folderContextUserId !== nextUserId) {
+    queryClient.removeQueries({ queryKey: ['folders', 'tree'] })
+    uiStore.syncFolderContextForUser(nextUserId)
+  }
+}, { immediate: true })
+
+watch(
+  [() => uiStore.folderTreeReady, treeData, selectedFolderId],
+  ([ready, folders, folderId]) => {
+    if (!ready || folderId == null || !folders) {
+      return
+    }
+
+    if (!findNodeById(folders, folderId)) {
+      uiStore.clearSelectedFolderId()
+    }
+  },
+  { immediate: true },
+)
 
 function handleNodeClick(node: FolderTreeNode) {
   uiStore.setSelectedFolderId(node.id)
 }
 
 function handleAllDocuments() {
-  uiStore.setSelectedFolderId(null)
+  uiStore.clearSelectedFolderId()
 }
 
 function openCreateDialog() {

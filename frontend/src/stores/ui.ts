@@ -5,6 +5,8 @@ type ContentDensity = 'comfortable' | 'compact'
 interface UiState {
   selectedFolderId: number | null
   selectedDocumentId: number | null
+  folderTreeReady: boolean
+  folderContextUserId: number | null
   sidebarCollapsed: boolean
   sidebarDrawerOpen: boolean
   contentDensity: ContentDensity
@@ -31,6 +33,8 @@ export const useUiStore = defineStore('ui', {
   state: (): UiState => ({
     selectedFolderId: null,
     selectedDocumentId: null,
+    folderTreeReady: false,
+    folderContextUserId: null,
     sidebarCollapsed: readBoolean(SIDEBAR_COLLAPSED_KEY, false),
     sidebarDrawerOpen: false,
     contentDensity: readDensity(),
@@ -38,6 +42,25 @@ export const useUiStore = defineStore('ui', {
   actions: {
     setSelectedFolderId(folderId: number | null) {
       this.selectedFolderId = folderId
+    },
+    clearSelectedFolderId() {
+      this.selectedFolderId = null
+    },
+    setFolderTreeReady(ready: boolean) {
+      this.folderTreeReady = ready
+    },
+    resetFolderContext() {
+      this.selectedFolderId = null
+      this.folderTreeReady = false
+    },
+    setFolderContextUserId(userId: number | null) {
+      this.folderContextUserId = userId
+    },
+    syncFolderContextForUser(userId: number | null) {
+      if (this.folderContextUserId !== userId) {
+        this.resetFolderContext()
+        this.folderContextUserId = userId
+      }
     },
     setSelectedDocumentId(documentId: number | null) {
       this.selectedDocumentId = documentId

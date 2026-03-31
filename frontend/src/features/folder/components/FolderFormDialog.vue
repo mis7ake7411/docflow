@@ -1,18 +1,18 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    :title="isEdit ? '編輯資料夾' : '新增資料夾'"
+    :title="isEdit ? '編輯自己的資料夾' : '新增自己的資料夾'"
     width="520px"
     @close="emit('update:modelValue', false)"
   >
     <el-form label-position="top">
       <el-form-item label="名稱">
-        <el-input v-model="form.name" placeholder="請輸入資料夾名稱" />
+        <el-input v-model="form.name" placeholder="請輸入自己的資料夾名稱" />
       </el-form-item>
 
       <el-form-item label="上層資料夾">
-        <el-select v-model="form.parentId" clearable placeholder="選擇上層資料夾" style="width: 100%">
-          <el-option :value="null" label="無" />
+        <el-select v-model="form.parentId" clearable placeholder="選擇上層資料夾（可留空）" style="width: 100%">
+          <el-option :value="null" label="根資料夾" />
           <el-option
             v-for="option in parentOptions"
             :key="option.id"
@@ -36,6 +36,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { createFolder, updateFolder, type FolderPayload, type FolderTreeNode } from '@/features/folder/api'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import { PERMISSION_MESSAGES } from '@/shared/utils/permission'
 import { isAxiosError } from 'axios'
 
@@ -51,6 +52,7 @@ const emit = defineEmits<{
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
+const uiStore = useUiStore()
 const submitting = ref(false)
 const isEdit = computed(() => Boolean(props.folder))
 const isManager = computed(() => authStore.userRole === 'MANAGER')
@@ -75,6 +77,20 @@ watch(
 )
 
 const parentOptions = computed(() => flattenFolders(props.treeData, props.folder?.id ?? null))
+
+watch(
+  [() => props.treeData, () => uiStore.folderTreeReady],
+  ([treeData, ready]) => {
+    if (!ready || form.parentId == null) {
+      return
+    }
+
+    if (!findFolderById(treeData, form.parentId)) {
+      form.parentId = null
+    }
+  },
+  { immediate: true },
+)
 
 const createMutation = useMutation({
   mutationFn: createFolder,
@@ -101,7 +117,7 @@ const updateMutation = useMutation({
 
 async function handleSubmit() {
   if (!form.name.trim()) {
-    ElMessage.error('請輸入資料夾名稱')
+    ElMessage.error('請輸入自己的資料夾名稱')
     return
   }
 
@@ -139,5 +155,17 @@ function flattenFolders(nodes: FolderTreeNode[], excludeId: number | null): Arra
 
   walk(nodes)
   return result
+}
+
+function findFolderById(nodes: FolderTreeNode[], targetId: number): boolean {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return true
+    }
+    if (node.children?.length && findFolderById(node.children, targetId)) {
+      return true
+    }
+  }
+  return false
 }
 </script>
