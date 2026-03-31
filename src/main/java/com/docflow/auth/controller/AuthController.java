@@ -81,6 +81,11 @@ public class AuthController {
         return ApiResponse.success(null, "Logout successful");
     }
 
+    /**
+     * 取得目前登入使用者資訊。
+     *
+     * @return 目前登入使用者摘要資料
+     */
     @Operation(summary = "Get current user", description = "Return current authenticated user profile")
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/me")
@@ -88,6 +93,12 @@ public class AuthController {
         return ApiResponse.success(authService.getCurrentUser());
     }
 
+    /**
+     * 變更目前登入使用者密碼。
+     *
+     * @param request 變更密碼請求資料
+     * @return 成功回應
+     */
     @Operation(summary = "Change password", description = "Update current user's password")
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/change-password")

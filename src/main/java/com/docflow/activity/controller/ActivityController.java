@@ -31,6 +31,8 @@ public class ActivityController {
     /**
      * 取得最近的活動紀錄列表。
      *
+     * @param page 頁碼（從 0 開始）
+     * @param size 每頁筆數
      * @return 活動紀錄回應
      */
     @Operation(summary = "Get recent activity logs")

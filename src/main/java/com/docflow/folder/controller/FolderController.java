@@ -64,6 +64,12 @@ public class FolderController {
         return ApiResponse.success(folderService.update(id, request), "Folder updated successfully");
     }
 
+    /**
+     * 重新排序同一父節點下的資料夾。
+     *
+     * @param request 排序請求資料
+     * @return 成功回應
+     */
     @Operation(summary = "Reorder folders under the same parent")
     @PutMapping("/reorder")
     public ApiResponse<Void> reorder(@Valid @RequestBody ReorderFoldersRequest request) {
