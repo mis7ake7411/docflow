@@ -13,9 +13,10 @@ import java.time.LocalDateTime;
 @Table(name = "documents")
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class Document {
 
     @Id

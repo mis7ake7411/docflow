@@ -11,9 +11,10 @@ import java.time.LocalDateTime;
 @Table(name = "users")
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class User {
 
     @Id

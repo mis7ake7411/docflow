@@ -12,9 +12,10 @@ import java.time.LocalDateTime;
 @Table(name = "folders")
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class Folder {
 
     @Id

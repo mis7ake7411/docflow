@@ -28,9 +28,12 @@ server:
   port: ${APP_PORT:8080}
 
 logging:
+  level:
+    org.springframework.web: "debug"
+    org.hibernate: "error"
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [traceId=%X{traceId:-N/A}] %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [traceId=%X{traceId:-N/A}] %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %yellow([traceId=%X{traceId:-N/A}]) %cyan(%logger{15}) %highlight([%line]) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %yellow([traceId=%X{traceId:-N/A}]) %cyan(%logger{15}) %highlight([%line]) - %msg%n"
 
 springdoc:
   api-docs:
