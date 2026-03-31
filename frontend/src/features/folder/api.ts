@@ -20,7 +20,11 @@ export interface FolderTreeNode {
 export interface FolderPayload {
   name: string
   parentId: number | null
-  sortOrder: number
+}
+
+export interface ReorderFoldersPayload {
+  parentId: number | null
+  orderedFolderIds: number[]
 }
 
 export async function getFolderTree(): Promise<FolderTreeNode[]> {
@@ -36,6 +40,10 @@ export async function createFolder(payload: FolderPayload): Promise<FolderTreeNo
 export async function updateFolder(id: number, payload: FolderPayload): Promise<FolderTreeNode> {
   const response = await apiClient.put<ApiResponse<FolderTreeNode>>(`/api/folders/${id}`, payload)
   return response.data.data
+}
+
+export async function reorderFolders(payload: ReorderFoldersPayload): Promise<void> {
+  await apiClient.put('/api/folders/reorder', payload)
 }
 
 export async function deleteFolder(id: number): Promise<void> {

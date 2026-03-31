@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="folder-panel">
     <div class="section-header">
       <div>
@@ -20,11 +20,18 @@
         :props="treeProps"
         highlight-current
         default-expand-all
+        draggable
+        :allow-drag="allowDrag"
+        :allow-drop="allowDrop"
         @node-click="handleNodeClick"
+        @node-drop="handleNodeDrop"
       >
         <template #default="{ data }">
           <div class="tree-node">
-            <span class="node-name">{{ data.name }}</span>
+            <span class="node-name">
+              <span v-if="showDragHandle(data)" class="drag-handle">⋮⋮</span>
+              {{ data.name }}
+            </span>
             <span v-if="!isManager" class="tree-actions">
               <el-tooltip v-if="!canEditFolder(data)" :content="PERMISSION_MESSAGES.folderHint">
                 <span>
@@ -62,12 +69,20 @@
 import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import { deleteFolder, getFolderTree, type FolderTreeNode } from '@/features/folder/api'
+import { deleteFolder, getFolderTree, reorderFolders, type FolderTreeNode } from '@/features/folder/api'
 import FolderFormDialog from '@/features/folder/components/FolderFormDialog.vue'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
-import { canModifyResource, PERMISSION_MESSAGES } from '@/shared/utils/permission'
+import { canModifyResource, isAdminOrManager, PERMISSION_MESSAGES } from '@/shared/utils/permission'
 import { isAxiosError } from 'axios'
+
+type TreeNodeLike = {
+  data: FolderTreeNode
+  parent: {
+    level: number
+    data?: FolderTreeNode
+  }
+}
 
 const uiStore = useUiStore()
 const authStore = useAuthStore()
@@ -92,6 +107,22 @@ const deleteMutation = useMutation({
     if (isAxiosError(error) && error.response?.status === 403) {
       ElMessage.error(PERMISSION_MESSAGES.folderForbidden)
     }
+  },
+})
+
+const reorderMutation = useMutation({
+  mutationFn: reorderFolders,
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
+    ElMessage.success('資料夾排序已更新')
+  },
+  onError: async (error) => {
+    await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
+    if (isAxiosError(error) && error.response?.status === 403) {
+      ElMessage.error(PERMISSION_MESSAGES.folderForbidden)
+      return
+    }
+    ElMessage.error('資料夾排序更新失敗')
   },
 })
 
@@ -126,12 +157,67 @@ function canEditFolder(folder: FolderTreeNode) {
   return canModifyResource(folder.createdBy, currentUser.value)
 }
 
+function canReorderSiblingGroup(parentId: number | null) {
+  if (isAdminOrManager(currentUser.value)) {
+    return true
+  }
+  const siblings = getSiblingGroup(parentId)
+  return siblings.length > 0 && siblings.every((folder) => canEditFolder(folder))
+}
+
+function showDragHandle(folder: FolderTreeNode) {
+  return canReorderSiblingGroup(folder.parentId)
+}
+
+function allowDrag(node: TreeNodeLike) {
+  return canReorderSiblingGroup(node.data.parentId)
+}
+
+function allowDrop(draggingNode: TreeNodeLike, dropNode: TreeNodeLike, type: 'prev' | 'inner' | 'next') {
+  return type !== 'inner'
+    && draggingNode.data.parentId === dropNode.data.parentId
+    && canReorderSiblingGroup(draggingNode.data.parentId)
+}
+
+async function handleNodeDrop(_draggingNode: TreeNodeLike, dropNode: TreeNodeLike) {
+  const parentId = dropNode.data.parentId
+  const siblings = dropNode.parent.level === 0
+    ? treeData.value
+    : (dropNode.parent.data?.children ?? [])
+
+  await reorderMutation.mutateAsync({
+    parentId,
+    orderedFolderIds: siblings.map((folder) => folder.id),
+  })
+}
+
 async function handleDelete(folderId: number) {
   await deleteMutation.mutateAsync(folderId)
 }
 
+function getSiblingGroup(parentId: number | null): FolderTreeNode[] {
+  if (parentId == null) {
+    return treeData.value
+  }
+  const parent = findNodeById(treeData.value, parentId)
+  return parent?.children ?? []
+}
+
 function countNodes(nodes: FolderTreeNode[]): number {
   return nodes.reduce((sum, node) => sum + 1 + countNodes(node.children ?? []), 0)
+}
+
+function findNodeById(nodes: FolderTreeNode[], targetId: number): FolderTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return node
+    }
+    const childMatch = findNodeById(node.children ?? [], targetId)
+    if (childMatch) {
+      return childMatch
+    }
+  }
+  return null
 }
 </script>
 
@@ -174,9 +260,18 @@ function countNodes(nodes: FolderTreeNode[]): number {
 }
 
 .node-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.drag-handle {
+  color: #94a3b8;
+  cursor: grab;
+  letter-spacing: -1px;
 }
 
 .tree-actions {
@@ -211,4 +306,3 @@ function countNodes(nodes: FolderTreeNode[]): number {
   }
 }
 </style>
-

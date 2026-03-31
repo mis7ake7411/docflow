@@ -4,6 +4,7 @@ import com.docflow.common.response.ApiResponse;
 import com.docflow.folder.dto.CreateFolderRequest;
 import com.docflow.folder.dto.FolderResponse;
 import com.docflow.folder.dto.FolderTreeResponse;
+import com.docflow.folder.dto.ReorderFoldersRequest;
 import com.docflow.folder.dto.UpdateFolderRequest;
 import com.docflow.folder.service.FolderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +62,13 @@ public class FolderController {
     @PutMapping("/{id}")
     public ApiResponse<FolderResponse> update(@PathVariable Long id, @Valid @RequestBody UpdateFolderRequest request) {
         return ApiResponse.success(folderService.update(id, request), "Folder updated successfully");
+    }
+
+    @Operation(summary = "Reorder folders under the same parent")
+    @PutMapping("/reorder")
+    public ApiResponse<Void> reorder(@Valid @RequestBody ReorderFoldersRequest request) {
+        folderService.reorder(request);
+        return ApiResponse.success(null, "Folders reordered successfully");
     }
 
     /**

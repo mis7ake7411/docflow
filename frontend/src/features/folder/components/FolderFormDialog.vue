@@ -1,5 +1,10 @@
 <template>
-  <el-dialog :model-value="modelValue" :title="isEdit ? '編輯資料夾' : '新增資料夾'" width="520px" @close="emit('update:modelValue', false)">
+  <el-dialog
+    :model-value="modelValue"
+    :title="isEdit ? '編輯資料夾' : '新增資料夾'"
+    width="520px"
+    @close="emit('update:modelValue', false)"
+  >
     <el-form label-position="top">
       <el-form-item label="名稱">
         <el-input v-model="form.name" placeholder="請輸入資料夾名稱" />
@@ -15,10 +20,6 @@
             :value="option.id"
           />
         </el-select>
-      </el-form-item>
-
-      <el-form-item label="排序">
-        <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
       </el-form-item>
     </el-form>
 
@@ -57,7 +58,6 @@ const isManager = computed(() => authStore.userRole === 'MANAGER')
 const form = reactive<FolderPayload>({
   name: '',
   parentId: null,
-  sortOrder: 0,
 })
 
 watch(
@@ -66,11 +66,9 @@ watch(
     if (folder) {
       form.name = folder.name
       form.parentId = folder.parentId
-      form.sortOrder = folder.sortOrder
     } else {
       form.name = ''
       form.parentId = null
-      form.sortOrder = 0
     }
   },
   { immediate: true },
@@ -82,7 +80,7 @@ const createMutation = useMutation({
   mutationFn: createFolder,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
-    ElMessage.success('資料夾建立成功')
+    ElMessage.success('資料夾已建立')
     emit('update:modelValue', false)
   },
 })
@@ -91,7 +89,7 @@ const updateMutation = useMutation({
   mutationFn: ({ id, payload }: { id: number; payload: FolderPayload }) => updateFolder(id, payload),
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['folders', 'tree'] })
-    ElMessage.success('資料夾更新成功')
+    ElMessage.success('資料夾已更新')
     emit('update:modelValue', false)
   },
   onError: (error) => {
@@ -110,9 +108,8 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const payload: FolderPayload = {
-      name: form.name,
+      name: form.name.trim(),
       parentId: form.parentId,
-      sortOrder: form.sortOrder,
     }
 
     if (props.folder) {

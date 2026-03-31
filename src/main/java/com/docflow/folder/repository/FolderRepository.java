@@ -18,6 +18,14 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
      */
     List<Folder> findAllByDeletedFlagFalseOrderBySortOrderAscIdAsc();
 
+    List<Folder> findAllByDeletedFlagFalseAndParentIsNullOrderBySortOrderAscIdAsc();
+
+    List<Folder> findAllByDeletedFlagFalseAndParentIdOrderBySortOrderAscIdAsc(Long parentId);
+
+    Optional<Folder> findTopByDeletedFlagFalseAndParentIsNullOrderBySortOrderDescIdDesc();
+
+    Optional<Folder> findTopByDeletedFlagFalseAndParentIdOrderBySortOrderDescIdDesc(Long parentId);
+
     /**
      * 依編號查詢未刪除資料夾。
      *
