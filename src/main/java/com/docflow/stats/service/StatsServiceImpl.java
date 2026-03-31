@@ -4,6 +4,7 @@ import com.docflow.document.dto.HotDocumentItem;
 import com.docflow.document.dto.RecentViewItem;
 import com.docflow.document.service.DocumentCacheService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.List;
  * {@link StatsService} 的預設實作，委派快取服務提供統計資料。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class StatsServiceImpl implements StatsService {
 
@@ -24,7 +26,10 @@ public class StatsServiceImpl implements StatsService {
      */
     @Override
     public List<HotDocumentItem> getHotDocuments() {
-        return documentCacheService.getHotDocuments();
+        log.debug("Loading hot documents statistics");
+        List<HotDocumentItem> items = documentCacheService.getHotDocuments();
+        log.debug("Hot documents loaded: count={}", items.size());
+        return items;
     }
 
     /**
@@ -35,6 +40,9 @@ public class StatsServiceImpl implements StatsService {
      */
     @Override
     public List<RecentViewItem> getRecentViews(Long userId) {
-        return documentCacheService.getRecentViews(userId);
+        log.debug("Loading recent views for user: userId={}", userId);
+        List<RecentViewItem> items = documentCacheService.getRecentViews(userId);
+        log.debug("Recent views loaded: userId={}, count={}", userId, items.size());
+        return items;
     }
 }

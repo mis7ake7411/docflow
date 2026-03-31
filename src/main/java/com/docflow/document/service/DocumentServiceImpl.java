@@ -12,7 +12,6 @@ import com.docflow.document.entity.DocumentStatus;
 import com.docflow.document.repository.DocumentRepository;
 import com.docflow.document.storage.LocalFileStorageService;
 import com.docflow.document.storage.StoredFileResult;
-import com.docflow.document.service.DocumentCacheService;
 import com.docflow.folder.entity.Folder;
 import com.docflow.folder.repository.FolderRepository;
 import com.docflow.user.entity.User;
@@ -21,15 +20,15 @@ import com.docflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 
 /**
  * {@link DocumentService} 的預設實作，負責文件資料、檔案儲存與快取同步。
@@ -265,17 +264,31 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new BadRequestException("Document not found"));
     }
 
+    /**
+     * 驗證目前使用者是否有權限修改指定文件。
+     * 系統管理員和主管擁有全部權限；普通使用者僅能修改自己建立的文件。
+     *
+     * @param currentUser 目前登入的使用者
+     * @param document 文件實體
+     * @throws ForbiddenException 若使用者無權限修改該文件
+     */
     private void assertCanModifyDocument(User currentUser, Document document) {
+        log.debug("Checking document modification permission: userId={}, role={}, documentId={}, documentCreatedBy={}",
+                currentUser.getId(), currentUser.getRole(), document.getId(),
+                document.getCreatedBy() != null ? document.getCreatedBy().getId() : null);
         if (currentUser.getRole() == UserRole.ADMIN
                 || currentUser.getRole() == UserRole.MANAGER) {
+            log.debug("User has privileged role, allowing document modification");
             return;
         }
         if (currentUser.getRole() == UserRole.USER
                 && document.getCreatedBy() != null
                 && document.getCreatedBy().getId() != null
                 && document.getCreatedBy().getId().equals(currentUser.getId())) {
+            log.debug("User is document creator, allowing modification");
             return;
         }
+        log.warn("User lacks permission to modify document: userId={}, documentId={}", currentUser.getId(), document.getId());
         throw new ForbiddenException("無權限操作此文件");
     }
 
@@ -311,8 +324,10 @@ public class DocumentServiceImpl implements DocumentService {
      *
      * @param status 文件狀態字串
      * @return 文件狀態列舉
+     * @throws BadRequestException 若狀態值無效
      */
     private DocumentStatus parseStatus(String status) {
+        log.debug("Parsing document status: status={}", status);
         try {
             return DocumentStatus.valueOf(status.toUpperCase());
         } catch (Exception ex) {
@@ -328,6 +343,7 @@ public class DocumentServiceImpl implements DocumentService {
      * @return 文件回應資料
      */
     private DocumentResponse toResponse(Document document) {
+        log.trace("Converting document entity to response: documentId={}, title={}", document.getId(), document.getTitle());
         return DocumentResponse.builder()
                 .id(document.getId())
                 .folderId(document.getFolder() != null ? document.getFolder().getId() : null)

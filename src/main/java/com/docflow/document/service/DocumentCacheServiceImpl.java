@@ -212,21 +212,41 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      * @return 元素數量
      */
     private long sizeOfZSet(String key) {
+        log.trace("Getting zset size: key={}", key);
         Long size = redisTemplate.opsForZSet().zCard(key);
         return size == null ? 0 : size;
     }
 
+    /**
+     * 嘗試從快取或資料庫解析文件，並在快取未命中時回寫快取。
+     *
+     * @param documentId 文件編號
+     * @return 文件回應資料
+     */
     private Optional<DocumentResponse> resolveDocument(Long documentId) {
+        log.trace("Resolving document: documentId={}", documentId);
         return getDocumentDetail(documentId)
-                .or(() -> documentRepository.findByIdAndDeletedFlagFalse(documentId).map(this::toResponse))
+                .or(() -> {
+                    log.trace("Document not in cache, querying database: documentId={}", documentId);
+                    return documentRepository.findByIdAndDeletedFlagFalse(documentId).map(this::toResponse);
+                })
                 .map(response -> {
                     cacheDocumentDetail(documentId, response);
                     return response;
                 });
     }
 
+    /**
+     * 將文件實體轉為回應物件。
+     *
+     * @param document 文件實體
+     * @return 文件回應資料
+     * @throws BadRequestException 若文件建立者不存在
+     */
     private DocumentResponse toResponse(Document document) {
+        log.trace("Converting document entity to response: documentId={}, title={}", document.getId(), document.getTitle());
         if (document.getCreatedBy() == null) {
+            log.error("Document creator is null: documentId={}", document.getId());
             throw new BadRequestException("Document creator not found");
         }
 

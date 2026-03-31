@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * {@link ActivityLogService} 的預設實作，負責系統活動紀錄之記錄與查詢。
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -44,6 +47,9 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         User user = null;
         if (userId != null) {
             user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                log.trace("Activity user resolved: username={}", user.getUsername());
+            }
         }
 
         ActivityLog activityLog = ActivityLog.builder()
@@ -66,7 +72,10 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     @Override
     @Transactional(readOnly = true)
     public List<ActivityLog> getRecentActivities() {
-        return activityLogRepository.findTop100ByOrderByCreatedAtDesc();
+        log.debug("Loading recent activities (top 100)");
+        List<ActivityLog> activities = activityLogRepository.findTop100ByOrderByCreatedAtDesc();
+        log.debug("Recent activities loaded: count={}", activities.size());
+        return activities;
     }
 
     /**
@@ -79,8 +88,11 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     @Override
     @Transactional(readOnly = true)
     public Page<ActivityLog> getPaged(int page, int size) {
+        log.debug("Loading paged activities: page={}, size={}", page, size);
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"));
-        return activityLogRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<ActivityLog> result = activityLogRepository.findAllByOrderByCreatedAtDesc(pageable);
+        log.debug("Paged activities loaded: totalElements={}, totalPages={}", result.getTotalElements(), result.getTotalPages());
+        return result;
     }
 
     /**
@@ -92,10 +104,13 @@ public class ActivityLogServiceImpl implements ActivityLogService {
      */
     private String toJson(Map<String, Object> detail) {
         if (detail == null || detail.isEmpty()) {
+            log.trace("Activity detail is empty, returning null");
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(detail);
+            String json = objectMapper.writeValueAsString(detail);
+            log.trace("Activity detail serialized successfully");
+            return json;
         } catch (JsonProcessingException ex) {
             log.error("Failed to serialize activity detail: detail={}", detail, ex);
             throw new IllegalStateException("Failed to serialize activity detail", ex);

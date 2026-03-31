@@ -135,6 +135,12 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * 取得目前登入使用者的個人資訊摘要。
+     *
+     * @return 使用者摘要資訊
+     * @throws UnauthorizedException 若使用者不存在
+     */
     @Override
     @Transactional(readOnly = true)
     public UserSummaryResponse getCurrentUser() {
@@ -142,9 +148,17 @@ public class AuthServiceImpl implements AuthService {
         log.debug("Loading current user profile: userId={}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
+        log.debug("Current user profile loaded: username={}", user.getUsername());
         return toUserSummary(user);
     }
 
+    /**
+     * 變更目前登入使用者的密碼。
+     *
+     * @param request 包含舊密碼與新密碼的請求
+     * @throws UnauthorizedException 若使用者不存在
+     * @throws BadRequestException 若舊密碼驗證失敗
+     */
     @Override
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
@@ -161,6 +175,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setMustChangePassword(false);
         userRepository.save(user);
+        log.info("Password changed successfully: userId={}", userId);
 
         activityLogService.log(userId, "USER", userId, "UPDATE", Map.of("changePassword", true));
     }
@@ -227,7 +242,14 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * 將使用者實體轉換為摘要回應物件。
+     *
+     * @param user 使用者實體
+     * @return 使用者摘要資訊
+     */
     private UserSummaryResponse toUserSummary(User user) {
+        log.trace("Converting user entity to summary: userId={}, username={}", user.getId(), user.getUsername());
         return UserSummaryResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())

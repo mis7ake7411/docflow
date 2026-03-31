@@ -2,12 +2,14 @@ package com.docflow.auth.service;
 
 import com.docflow.document.service.DocumentCacheService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
  * {@link AuthTokenBlacklistService} 的預設實作，使用快取儲存黑名單 token。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthTokenBlacklistServiceImpl implements AuthTokenBlacklistService {
 
@@ -21,7 +23,9 @@ public class AuthTokenBlacklistServiceImpl implements AuthTokenBlacklistService 
      */
     @Override
     public void blacklist(String token, long ttlSeconds) {
+        log.info("Blacklisting access token: ttlSeconds={}", ttlSeconds);
         documentCacheService.blacklistAccessToken(token, ttlSeconds);
+        log.debug("Token blacklisted successfully");
     }
 
     /**
@@ -32,6 +36,9 @@ public class AuthTokenBlacklistServiceImpl implements AuthTokenBlacklistService 
      */
     @Override
     public boolean isBlacklisted(String token) {
-        return documentCacheService.isAccessTokenBlacklisted(token);
+        log.debug("Checking if token is blacklisted");
+        boolean result = documentCacheService.isAccessTokenBlacklisted(token);
+        log.trace("Token blacklist check completed: isBlacklisted={}", result);
+        return result;
     }
 }
