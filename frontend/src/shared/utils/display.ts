@@ -67,7 +67,11 @@ export function getAccessLevelLabel(accessLevel: string | null | undefined) {
   return ACCESS_LEVEL_LABELS[accessLevel] ?? accessLevel
 }
 
-export function formatActivityDetail(action: string | null | undefined, detailJson: string | null | undefined) {
+export function formatActivityDetail(
+  action: string | null | undefined,
+  detailJson: string | null | undefined,
+  targetType?: string | null,
+) {
   if (!detailJson) return '—'
 
   const parsed = parseActivityDetail(detailJson)
@@ -76,13 +80,66 @@ export function formatActivityDetail(action: string | null | undefined, detailJs
   }
 
   switch (action) {
+    // ── 驗證 / 使用者動作 ──────────────────────────────────────
+    case 'LOGIN':
+      return `${resolveUsernameLabel(parsed)} 登入系統`
+    case 'LOGOUT':
+      return '已登出，令牌已撤銷'
+    case 'REGISTER':
+      return `新使用者 ${resolveUsernameLabel(parsed)} 完成註冊`
+
+    // ── 文件動作 ──────────────────────────────────────────────
+    case 'CREATE': {
+      if (typeof parsed.title === 'string') {
+        return `建立文件《${parsed.title}》`
+      }
+      if (typeof parsed.name === 'string') {
+        return `建立資料夾《${parsed.name}》`
+      }
+      break
+    }
+    case 'UPDATE': {
+      if (parsed.changePassword === true) {
+        return '已變更密碼'
+      }
+      if (typeof parsed.title === 'string') {
+        const version = parsed.version != null ? `（版本 ${parsed.version}）` : ''
+        const statusLabel = typeof parsed.status === 'string'
+          ? `，狀態：${getStatusLabel(parsed.status)}`
+          : ''
+        return `更新文件《${parsed.title}》${version}${statusLabel}`
+      }
+      if (typeof parsed.name === 'string') {
+        return `更新資料夾《${parsed.name}》`
+      }
+      break
+    }
+    case 'DELETE': {
+      if (typeof parsed.title === 'string') {
+        return `刪除文件《${parsed.title}》`
+      }
+      if (typeof parsed.name === 'string') {
+        return `刪除資料夾《${parsed.name}》`
+      }
+      break
+    }
+    case 'UPLOAD': {
+      const fileName = typeof parsed.fileName === 'string' ? parsed.fileName : '（未知檔案）'
+      const version = parsed.version != null ? `（版本 ${parsed.version}）` : ''
+      return `上傳檔案《${fileName}》${version}`
+    }
+    case 'DOWNLOAD': {
+      const fileName = typeof parsed.fileName === 'string' ? parsed.fileName : '（未知檔案）'
+      return `下載檔案《${fileName}》`
+    }
+
+    // ── 分享動作 ──────────────────────────────────────────────
     case 'SHARE_CREATE':
       return `${resolveUserLabel(parsed)} 取得 ${resolvePermissionLabel(parsed.permission)} 權限`
     case 'SHARE_UPDATE': {
       const userLabel = resolveUserLabel(parsed)
       const nextPermission = resolvePermissionLabel(parsed.permission)
       const previousPermission = resolvePermissionLabel(parsed.previousPermission)
-
       if (parsed.previousPermission) {
         return `${userLabel} 權限由 ${previousPermission} 調整為 ${nextPermission}`
       }
@@ -90,9 +147,11 @@ export function formatActivityDetail(action: string | null | undefined, detailJs
     }
     case 'SHARE_DELETE':
       return `已取消 ${resolveUserLabel(parsed)} 的分享權限`
-    default:
-      return formatGenericDetail(parsed)
   }
+
+  // 使用 targetType 輔助提示（後備）
+  const scopeHint = targetType ? `（${getTargetTypeLabel(targetType)}）` : ''
+  return `${getActionLabel(action)}${scopeHint}`
 }
 
 function parseActivityDetail(detailJson: string): ActivityDetail | null {
@@ -105,6 +164,14 @@ function parseActivityDetail(detailJson: string): ActivityDetail | null {
   } catch {
     return null
   }
+}
+
+function resolveUsernameLabel(detail: ActivityDetail) {
+  const username = detail.username
+  if (typeof username === 'string' && username.trim()) {
+    return username
+  }
+  return '未知使用者'
 }
 
 function resolveUserLabel(detail: ActivityDetail) {
@@ -128,10 +195,3 @@ function resolvePermissionLabel(permission: unknown) {
   return getAccessLevelLabel(permission)
 }
 
-function formatGenericDetail(detail: ActivityDetail) {
-  const entries = Object.entries(detail)
-    .filter(([, value]) => value !== null && value !== undefined && value !== '')
-    .map(([key, value]) => `${key}: ${String(value)}`)
-
-  return entries.length ? entries.join('、') : '—'
-}

@@ -45,7 +45,6 @@
             <el-button text type="primary" @click="openDetail(scopeSlot.row.id)">查看</el-button>
 
             <template v-if="canEditDocument(scopeSlot.row, currentUser)">
-              <el-button text @click="openEditDialog(scopeSlot.row)">編輯</el-button>
               <el-button text @click="openUploadDialog(scopeSlot.row)">上傳</el-button>
             </template>
             <template v-else>
@@ -233,11 +232,6 @@ function openCreateDialog() {
   createDialogVisible.value = true
 }
 
-function openEditDialog(document: DocumentItem) {
-  editingDocument.value = document
-  editDialogVisible.value = true
-}
-
 function openUploadDialog(document: DocumentItem) {
   uploadingDocumentId.value = document.id
   uploadDialogVisible.value = true
@@ -340,14 +334,6 @@ function findFolderById(nodes: FolderTreeNode[], targetId: number): boolean {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.header-icon {
-  border: 1px solid #d9e1ea;
-  background: #fff;
-  color: #526071;
-  padding: 10px 12px;
-  cursor: pointer;
 }
 
 .table-container {

@@ -2,8 +2,7 @@
   <div class="folder-panel">
     <div class="section-header">
       <div>
-        <h3>自己的資料夾</h3>
-        <p class="muted">共 {{ totalCount }} 個自己的資料夾</p>
+        <h3>資料夾列表</h3>
       </div>
       <el-button v-if="!isManager" type="primary" @click="openCreateDialog">新增資料夾</el-button>
     </div>
@@ -137,7 +136,7 @@ const treeProps = {
 }
 const selectedFolderId = computed(() => uiStore.selectedFolderId)
 
-const totalCount = computed(() => countNodes(treeData.value))
+// const totalCount = computed(() => countNodes(treeData.value))
 const isManager = computed(() => authStore.userRole === 'MANAGER')
 
 watch(isSuccess, (ready) => {
@@ -280,9 +279,9 @@ function hasSameOrder(currentOrder: number[], nextOrder: number[]) {
     && currentOrder.every((id, index) => id === nextOrder[index])
 }
 
-function countNodes(nodes: FolderTreeNode[]): number {
-  return nodes.reduce((sum, node) => sum + 1 + countNodes(node.children ?? []), 0)
-}
+// function countNodes(nodes: FolderTreeNode[]): number {
+//   return nodes.reduce((sum, node) => sum + 1 + countNodes(node.children ?? []), 0)
+// }
 
 function findNodeById(nodes: FolderTreeNode[], targetId: number): FolderTreeNode | null {
   for (const node of nodes) {
@@ -331,12 +330,14 @@ function findNodeById(nodes: FolderTreeNode[], targetId: number): FolderTreeNode
 .tree-node {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
+  min-width: 0;
   gap: 12px;
 }
 
 .node-name {
+  flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -352,9 +353,13 @@ function findNodeById(nodes: FolderTreeNode[], targetId: number): FolderTreeNode
 }
 
 .tree-actions {
-  display: flex;
+  margin-left: auto;
+  flex: 0 0 112px;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .panel-footer {
@@ -381,5 +386,11 @@ function findNodeById(nodes: FolderTreeNode[], targetId: number): FolderTreeNode
   .panel-footer {
     padding-inline: 16px;
   }
+
+  .tree-actions {
+    flex-basis: auto;
+    justify-content: flex-end;
+  }
 }
+
 </style>

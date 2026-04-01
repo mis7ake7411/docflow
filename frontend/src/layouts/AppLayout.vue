@@ -50,24 +50,6 @@
         </div>
 
         <div class="shell-topbar-right">
-          <div class="density-switch" aria-label="內容密度設定">
-            <button
-              type="button"
-              class="density-option"
-              :class="{ active: uiStore.contentDensity === 'comfortable' }"
-              @click="uiStore.setContentDensity('comfortable')"
-            >
-              舒適
-            </button>
-            <button
-              type="button"
-              class="density-option"
-              :class="{ active: uiStore.contentDensity === 'compact' }"
-              @click="uiStore.setContentDensity('compact')"
-            >
-              緊湊
-            </button>
-          </div>
 
           <button
             type="button"
@@ -274,11 +256,6 @@ async function handleLogout() {
   background: rgba(92, 208, 214, 0.12);
 }
 
-.nav-link.router-link-active {
-  color: #ffffff;
-  background: #5ccfd6;
-}
-
 .nav-link.router-link-active .nav-badge {
   background: rgba(255, 255, 255, 0.18);
 }
@@ -292,19 +269,6 @@ async function handleLogout() {
   background: rgba(255, 255, 255, 0.1);
   font-size: 0.88rem;
   font-weight: 700;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding: 20px 24px 28px;
-  color: rgba(229, 243, 245, 0.82);
-}
-
-.footer-label {
-  display: block;
-  margin-bottom: 8px;
-  color: rgba(229, 243, 245, 0.65);
-  font-size: 0.9rem;
 }
 
 .main-panel {
@@ -337,44 +301,6 @@ async function handleLogout() {
 
 .icon-button {
   margin-top: 2px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.header-icon {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #d9e1ea;
-  border-radius: 10px;
-  background: #fff;
-  color: #526071;
-  cursor: pointer;
-}
-
-.density-switch {
-  display: inline-flex;
-  padding: 4px;
-  border-radius: 999px;
-  background: #eef2f6;
-}
-
-.density-option {
-  border: 0;
-  background: transparent;
-  color: #526071;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font: inherit;
-  cursor: pointer;
-}
-
-.density-option.active {
-  background: #ffffff;
-  color: #122033;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
 }
 
 .user-card {
@@ -489,9 +415,6 @@ async function handleLogout() {
     align-items: stretch;
   }
 
-  .header-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 
