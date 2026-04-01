@@ -33,7 +33,15 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       }
 
+      // Token 刷新失敗或 token 已失效，執行登出並導回登入頁
       logoutFromBridge()
+
+      // 保存當前路徑以供登入後重定向
+      const currentPath = window.location.pathname + window.location.search
+      if (currentPath !== '/login' && currentPath !== '/register') {
+        const redirectUrl = `/login?redirect=${encodeURIComponent(currentPath)}`
+        window.location.href = redirectUrl
+      }
     }
 
     return Promise.reject(error)

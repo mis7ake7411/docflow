@@ -19,6 +19,15 @@ export function setupRouterGuards(router: Router) {
       return '/app'
     }
 
+    // 登入成功後清空 session 過期原因
+    if (to.name === 'login' && authStore.sessionExpiredReason) {
+      // 保留原因顯示一次
+      authStore.sessionExpiredReason = authStore.sessionExpiredReason
+    } else if (authStore.isAuthenticated) {
+      // 認証通過後清空過期原因
+      authStore.sessionExpiredReason = null
+    }
+
     return true
   })
 }

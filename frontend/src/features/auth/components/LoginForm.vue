@@ -31,13 +31,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { InputInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const formRef = ref()
@@ -48,6 +49,19 @@ const errorMessage = ref('')
 const form = reactive({
   username: '',
   password: '',
+})
+
+// 從 URL 查詢參數讀取重定向路徑
+const redirectPath = computed(() => {
+  const redirect = route.query.redirect
+  if (redirect && typeof redirect === 'string') {
+    try {
+      return decodeURIComponent(redirect)
+    } catch {
+      return '/app'
+    }
+  }
+  return null
 })
 
 /** 帳號欄按 Enter 時將焦點移至密碼欄 */
@@ -70,7 +84,10 @@ async function handleSubmit() {
       password: form.password,
     })
     ElMessage.success('登入成功')
-    await router.push('/app')
+
+    // 若有重定向路徑則使用，否則導到儀表板
+    const targetPath = redirectPath.value || '/app'
+    await router.push(targetPath)
   } catch {
     errorMessage.value = '登入失敗，請確認帳號密碼是否正確。'
   } finally {

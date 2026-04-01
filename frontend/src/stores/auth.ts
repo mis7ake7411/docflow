@@ -17,6 +17,7 @@ interface AuthState {
   refreshToken: string | null
   user: UserSummary | null
   initialized: boolean
+  sessionExpiredReason: string | null
 }
 
 const ACCESS_TOKEN_KEY = 'docflow.accessToken'
@@ -61,6 +62,7 @@ export const useAuthStore = defineStore('auth', {
     refreshToken: localStorage.getItem(REFRESH_TOKEN_KEY),
     user: readUserFromStorage(),
     initialized: false,
+    sessionExpiredReason: null,
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken && state.user),
@@ -80,10 +82,15 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.refreshToken = null
       this.user = null
+      this.sessionExpiredReason = null
 
       localStorage.removeItem(ACCESS_TOKEN_KEY)
       localStorage.removeItem(REFRESH_TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
+    },
+    setSessionExpired(reason: string = '您的登入已過期，請重新登入') {
+      this.sessionExpiredReason = reason
+      this.clearAuth()
     },
     setUserSummary(user: UserSummary) {
       this.user = user

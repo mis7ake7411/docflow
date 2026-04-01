@@ -20,8 +20,8 @@ const router = useRouter()
 registerAuthBridge({
   getAccessToken: () => authStore.accessToken,
   refreshAccessToken: () => authStore.refreshAccessToken(),
-  onLogout: () => {
-    authStore.clearAuth()
+  onLogout: (reason?: string) => {
+    authStore.setSessionExpired(reason)
     authStore.initialized = true
   },
 })

@@ -21,7 +21,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure(ex.getMessage()));
+        String message = ex.getMessage() != null ? ex.getMessage() : "登入已過期，請重新登入";
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure(message));
     }
 
     @ExceptionHandler(ForbiddenException.class)
