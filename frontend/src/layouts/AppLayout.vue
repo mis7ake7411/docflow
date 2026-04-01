@@ -34,10 +34,6 @@
         </RouterLink>
       </nav>
 
-      <div v-show="!isSidebarContentHidden" class="sidebar-footer">
-        <span class="footer-label">目前角色</span>
-        <strong>{{ getRoleLabel(authStore.userRole) }}</strong>
-      </div>
     </aside>
 
     <main class="main-panel">
@@ -73,15 +69,22 @@
             </button>
           </div>
 
-          <div class="user-card">
-            <div class="user-avatar">{{ (authStore.user?.username || '訪客').slice(0, 1).toUpperCase() }}</div>
-            <div class="user-meta">
+          <button
+            type="button"
+            class="user-card user-card-btn"
+            aria-label="帳號設定"
+            @click="accountModalVisible = true"
+          >
+            <span class="user-avatar">{{ (authStore.user?.username || '訪客').slice(0, 1).toUpperCase() }}</span>
+            <span class="user-meta">
               <strong>{{ authStore.user?.username || '訪客' }}</strong>
-              <p>{{ authStore.user?.email || '尚未登入' }}</p>
-            </div>
-          </div>
+              <span class="user-email">{{ authStore.user?.email || '尚未登入' }}</span>
+            </span>
+          </button>
 
           <el-button type="danger" plain @click="handleLogout">登出</el-button>
+
+          <AccountModal v-model="accountModalVisible" />
         </div>
       </header>
 
@@ -106,8 +109,8 @@ import { ElMessage } from 'element-plus'
 import { navigationRoutes } from '@/router/routes'
 import { hasAnyRole } from '@/shared/auth/permissions'
 import { PageHeader } from '@/shared/components'
-import { getRoleLabel } from '@/shared/utils/display'
 import ChangePasswordDialog from '@/features/auth/components/ChangePasswordDialog.vue'
+import AccountModal from '@/features/user/components/AccountModal.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 
@@ -119,6 +122,7 @@ const route = useRoute()
 const router = useRouter()
 const uiStore = useUiStore()
 const isMobile = ref(false)
+const accountModalVisible = ref(false)
 
 const visibleNavItems = computed(() =>
   navigationRoutes.filter((item) => hasAnyRole(authStore.userRole ?? undefined, item.meta?.roles)),
@@ -380,6 +384,27 @@ async function handleLogout() {
   padding: 0 4px;
 }
 
+.user-card-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 6px 10px;
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.user-card-btn:hover {
+  background: #eef2f6;
+  border-color: #d0d9e4;
+}
+
+.user-card-btn:focus-visible {
+  outline: 2px solid #41c8cf;
+  outline-offset: 2px;
+}
+
 .user-avatar {
   width: 34px;
   height: 34px;
@@ -392,11 +417,12 @@ async function handleLogout() {
 }
 
 .user-meta strong,
-.user-meta p {
+.user-meta .user-email {
   margin: 0;
+  display: block;
 }
 
-.user-meta p {
+.user-meta .user-email {
   color: #748092;
   font-size: 0.88rem;
 }

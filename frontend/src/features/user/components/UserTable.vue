@@ -84,7 +84,7 @@
           <el-input v-model="editForm.username" disabled />
         </el-form-item>
         <el-form-item label="Email">
-          <el-input v-model="editForm.email" disabled />
+          <el-input v-model="editForm.email" placeholder="請輸入 Email" />
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="editForm.role" style="width: 100%">
@@ -256,11 +256,17 @@ async function handleUpdate() {
     return
   }
 
+  if (!editForm.email.trim()) {
+    ElMessage.error('請填寫 Email')
+    return
+  }
+
   submitting.value = true
   try {
     await updateMutation.mutateAsync({
       id: editingUserId.value,
       payload: {
+        email: editForm.email.trim(),
         role: editForm.role,
         status: editForm.status,
       },

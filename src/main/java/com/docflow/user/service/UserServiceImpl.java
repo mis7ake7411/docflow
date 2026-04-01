@@ -4,6 +4,7 @@ import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.response.PagedResponse;
 import com.docflow.user.dto.CreateUserRequest;
 import com.docflow.user.dto.CreateUserResponse;
+import com.docflow.user.dto.UpdateMyProfileRequest;
 import com.docflow.user.dto.UpdateUserRequest;
 import com.docflow.user.dto.UserListItemResponse;
 import com.docflow.user.entity.User;
@@ -114,7 +115,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * 更新使用者角色與狀態。
+     * 更新使用者電子郵件、角色與狀態。
      *
      * @param id 使用者編號
      * @param request 更新請求資料
@@ -124,15 +125,37 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserListItemResponse updateUser(Long id, UpdateUserRequest request) {
-        log.info("Updating user: userId={}, role={}, status={}", id, request.getRole(), request.getStatus());
+        log.info("Updating user: userId={}, email={}, role={}, status={}", id, request.getEmail(), request.getRole(), request.getStatus());
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        validateEmailUniqueness(normalizedEmail, id);
+
+        user.setEmail(normalizedEmail);
         user.setRole(parseRole(request.getRole()));
         user.setStatus(parseStatus(request.getStatus()));
 
         User saved = userRepository.save(user);
         log.info("User updated successfully: userId={}, username={}", saved.getId(), saved.getUsername());
+        return toListItem(saved);
+    }
+
+    @Override
+    @Transactional
+    public UserListItemResponse updateMyProfile(UpdateMyProfileRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.info("Updating current user profile: userId={}, email={}", currentUserId, request.getEmail());
+
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        validateEmailUniqueness(normalizedEmail, currentUserId);
+        user.setEmail(normalizedEmail);
+
+        User saved = userRepository.save(user);
+        log.info("Current user profile updated successfully: userId={}", saved.getId());
         return toListItem(saved);
     }
 
@@ -197,6 +220,17 @@ public class UserServiceImpl implements UserService {
             log.warn("Invalid status provided: {}", status);
             throw new BadRequestException("Invalid status");
         }
+    }
+
+    private void validateEmailUniqueness(String email, Long userId) {
+        if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, userId)) {
+            log.warn("User update rejected due to duplicate email: email={}, userId={}", email, userId);
+            throw new BadRequestException("Email already exists");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim();
     }
 
     /**

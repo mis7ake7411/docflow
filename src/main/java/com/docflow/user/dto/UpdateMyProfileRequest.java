@@ -7,15 +7,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UpdateUserRequest {
+public class UpdateMyProfileRequest {
 
     @Email(message = "Email format is invalid")
     @NotBlank(message = "Email is required")
     private String email;
-
-    @NotBlank(message = "Role is required")
-    private String role;
-
-    @NotBlank(message = "Status is required")
-    private String status;
 }
+

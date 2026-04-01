@@ -66,6 +66,10 @@ export const appRoutes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/app/account',
+    redirect: '/app',
+  },
+  {
     path: '/app/files',
     name: 'file-management',
     component: FileManagementPage,

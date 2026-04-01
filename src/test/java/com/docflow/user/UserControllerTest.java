@@ -8,6 +8,7 @@ import com.docflow.test.TestSecurityConfig;
 import com.docflow.user.controller.UserController;
 import com.docflow.user.dto.CreateUserRequest;
 import com.docflow.user.dto.CreateUserResponse;
+import com.docflow.user.dto.UpdateMyProfileRequest;
 import com.docflow.user.dto.UpdateUserRequest;
 import com.docflow.user.dto.UserListItemResponse;
 import com.docflow.user.entity.User;
@@ -148,6 +149,7 @@ class UserControllerTest {
     @WithMockUser(roles = {"ADMIN"})
     void updateUserShouldReturnUpdatedRole() throws Exception {
         UpdateUserRequest request = new UpdateUserRequest();
+        request.setEmail("alice.updated@example.com");
         request.setRole("MANAGER");
         request.setStatus("ACTIVE");
 
@@ -167,5 +169,29 @@ class UserControllerTest {
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("MANAGER"));
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void updateMyProfileShouldReturnUpdatedEmail() throws Exception {
+        UpdateMyProfileRequest request = new UpdateMyProfileRequest();
+        request.setEmail("me.updated@example.com");
+
+        UserListItemResponse response = UserListItemResponse.builder()
+                .id(1L)
+                .username("alice")
+                .email("me.updated@example.com")
+                .role("USER")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Mockito.when(userService.updateMyProfile(Mockito.any(UpdateMyProfileRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/users/me/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("me.updated@example.com"));
     }
 }

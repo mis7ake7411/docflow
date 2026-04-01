@@ -31,8 +31,13 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
+  email: string
   role: string
   status: string
+}
+
+export interface UpdateMyProfileRequest {
+  email: string
 }
 
 export interface CreateUserResponse {
@@ -85,3 +90,9 @@ export async function updateUser(id: number, request: UpdateUserRequest): Promis
   const response = await apiClient.put<ApiResponse<UserListItem>>(`/api/users/${id}`, request)
   return response.data.data
 }
+
+export async function updateMyProfile(request: UpdateMyProfileRequest): Promise<UserListItem> {
+  const response = await apiClient.put<ApiResponse<UserListItem>>('/api/users/me/profile', request)
+  return response.data.data
+}
+

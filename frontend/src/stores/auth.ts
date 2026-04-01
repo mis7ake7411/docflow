@@ -85,6 +85,10 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem(REFRESH_TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
     },
+    setUserSummary(user: UserSummary) {
+      this.user = user
+      localStorage.setItem(USER_KEY, JSON.stringify(user))
+    },
     async login(payload: LoginRequest) {
       const response = await login(payload)
       this.setAuth({

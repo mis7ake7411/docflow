@@ -7,6 +7,7 @@ import com.docflow.document.dto.RecentViewItem;
 import com.docflow.stats.service.StatsService;
 import com.docflow.user.dto.CreateUserRequest;
 import com.docflow.user.dto.CreateUserResponse;
+import com.docflow.user.dto.UpdateMyProfileRequest;
 import com.docflow.user.dto.UpdateUserRequest;
 import com.docflow.user.dto.UserListItemResponse;
 import com.docflow.user.service.UserService;
@@ -49,6 +50,18 @@ public class UserController {
     public ApiResponse<List<RecentViewItem>> getMyRecentViews() {
         Long userId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(statsService.getRecentViews(userId));
+    }
+
+    /**
+     * 更新目前登入使用者的個人資料。
+     *
+     * @param request 更新資料
+     * @return 更新後的使用者摘要
+     */
+    @Operation(summary = "Update current user profile")
+    @PutMapping("/me/profile")
+    public ApiResponse<UserListItemResponse> updateMyProfile(@Valid @RequestBody UpdateMyProfileRequest request) {
+        return ApiResponse.success(userService.updateMyProfile(request), "Profile updated successfully");
     }
 
     /**
@@ -96,13 +109,13 @@ public class UserController {
     }
 
     /**
-     * 更新指定使用者的角色與狀態。
+     * 更新指定使用者的電子郵件、角色與狀態。
      *
      * @param id 使用者編號
      * @param request 更新使用者請求資料
      * @return 更新後的使用者資料
      */
-    @Operation(summary = "Update user role and status")
+    @Operation(summary = "Update user profile, role and status")
     @PutMapping("/{id}")
     public ApiResponse<UserListItemResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         return ApiResponse.success(userService.updateUser(id, request), "User updated successfully");

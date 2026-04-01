@@ -31,6 +31,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     boolean existsByEmail(String email);
 
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+
     /**
      * 依使用者名稱查詢使用者。
      *

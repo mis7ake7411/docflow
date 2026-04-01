@@ -3,6 +3,7 @@ package com.docflow.user;
 import com.docflow.common.exception.BadRequestException;
 import com.docflow.common.security.DocflowUserPrincipal;
 import com.docflow.user.dto.CreateUserRequest;
+import com.docflow.user.dto.UpdateMyProfileRequest;
 import com.docflow.user.dto.UpdateUserRequest;
 import com.docflow.user.dto.UserListItemResponse;
 import com.docflow.user.entity.User;
@@ -85,16 +86,70 @@ class UserServiceImplTest {
                 .build();
 
         Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.existsByEmailIgnoreCaseAndIdNot("manager@example.com", 1L)).thenReturn(false);
         Mockito.when(userRepository.save(Mockito.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UpdateUserRequest request = new UpdateUserRequest();
+        request.setEmail("manager@example.com");
         request.setRole("MANAGER");
         request.setStatus("INACTIVE");
 
         UserListItemResponse response = userService.updateUser(1L, request);
 
+        assertThat(response.getEmail()).isEqualTo("manager@example.com");
         assertThat(response.getRole()).isEqualTo("MANAGER");
         assertThat(response.getStatus()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void updateUserShouldRejectDuplicateEmail() {
+        User user = User.builder()
+                .id(1L)
+                .username("alice")
+                .email("alice@example.com")
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        Mockito.when(userRepository.existsByEmailIgnoreCaseAndIdNot("used@example.com", 1L)).thenReturn(true);
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setEmail("used@example.com");
+        request.setRole("USER");
+        request.setStatus("ACTIVE");
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void updateMyProfileShouldOnlyChangeCurrentUserEmail() {
+        User currentUser = User.builder()
+                .id(1L)
+                .username("alice")
+                .email("alice@example.com")
+                .passwordHash("hash")
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        DocflowUserPrincipal principal = new DocflowUserPrincipal(currentUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+
+        Mockito.when(userRepository.findById(1L)).thenReturn(Optional.of(currentUser));
+        Mockito.when(userRepository.existsByEmailIgnoreCaseAndIdNot("new@example.com", 1L)).thenReturn(false);
+        Mockito.when(userRepository.save(Mockito.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateMyProfileRequest request = new UpdateMyProfileRequest();
+        request.setEmail("new@example.com");
+
+        UserListItemResponse response = userService.updateMyProfile(request);
+
+        assertThat(response.getEmail()).isEqualTo("new@example.com");
+        assertThat(response.getRole()).isEqualTo("USER");
+        assertThat(response.getStatus()).isEqualTo("ACTIVE");
     }
 
     @Test

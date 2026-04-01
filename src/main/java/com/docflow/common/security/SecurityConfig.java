@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh").permitAll()
                         .requestMatchers("/api/auth/me", "/api/auth/change-password", "/api/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/users/me/**").hasAnyRole("USER", "ADMIN", "MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me/profile").hasAnyRole("USER", "ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/users/share-candidates").hasAnyRole("USER", "ADMIN", "MANAGER")
                         .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/documents/*/shares", "/api/documents/*/shares/**")

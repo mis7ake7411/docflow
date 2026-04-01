@@ -10,6 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -32,5 +33,23 @@ class SecurityAccessTest {
     void managerCanAccessUserManagement() throws Exception {
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void userCanReachOwnProfileEndpointWithoutForbidden() throws Exception {
+        mockMvc.perform(put("/api/users/me/profile")
+                        .contentType("application/json")
+                        .content("{\"email\":\"user@example.com\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void userCannotUpdateOtherUser() throws Exception {
+        mockMvc.perform(put("/api/users/1")
+                        .contentType("application/json")
+                        .content("{\"email\":\"target@example.com\",\"role\":\"USER\",\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isForbidden());
     }
 }
