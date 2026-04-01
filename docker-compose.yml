@@ -20,7 +20,9 @@ services:
       - postgres
       - redis
     volumes:
-      - uploaded-files:${UPLOAD_DIR}
+      # 使用主機 bind mount，確保重新部署後檔案不會消失
+      # 首次部署前需在主機執行：sudo mkdir -p /data/docflow/uploads
+      - ${UPLOAD_HOST_DIR:-/data/docflow/uploads}:${UPLOAD_DIR}
 
   postgres:
     image: postgres:16-alpine
@@ -44,4 +46,6 @@ services:
 
 volumes:
   postgres-data:
-  uploaded-files:
+  # uploaded-files 已改為 bind mount，不再需要 named volume
+  # 若需回復請取消下行註解並還原 app.volumes 設定
+  # uploaded-files:
