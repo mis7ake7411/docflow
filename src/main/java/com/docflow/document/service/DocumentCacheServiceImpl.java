@@ -83,13 +83,16 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public void recordDocumentView(Long userId, DocumentResponse response) {
-        log.debug("Recording document view: userId={}, documentId={}", userId, response.getId());
+        log.info("Recording document view: userId={}, documentId={}", userId, response.getId());
         long now = Instant.now().toEpochMilli();
         String recentViewsKey = RedisKeys.recentViews(userId);
         String hotDocumentsKey = RedisKeys.hotDocuments();
 
         redisTemplate.opsForZSet().add(recentViewsKey, String.valueOf(response.getId()), now);
-        redisTemplate.opsForZSet().removeRange(recentViewsKey, 0, Math.max(0, sizeOfZSet(recentViewsKey) - RECENT_VIEW_LIMIT - 1));
+        long overflowCount = sizeOfZSet(recentViewsKey) - RECENT_VIEW_LIMIT;
+        if (overflowCount > 0) {
+            redisTemplate.opsForZSet().removeRange(recentViewsKey, 0, overflowCount - 1);
+        }
 
         redisTemplate.opsForZSet().incrementScore(hotDocumentsKey, String.valueOf(response.getId()), 1.0d);
     }
@@ -102,8 +105,9 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
      */
     @Override
     public List<RecentViewItem> getRecentViews(Long userId) {
-        log.debug("Loading recent document views: userId={}", userId);
+        log.info("Loading recent document views: userId={}", userId);
         String key = RedisKeys.recentViews(userId);
+        log.info("Cache recent views: key={}", key);
         Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<Object>> tuples =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, RECENT_VIEW_LIMIT - 1);
 
@@ -147,7 +151,6 @@ public class DocumentCacheServiceImpl implements DocumentCacheService {
                     .documentId(document.getId())
                     .title(document.getTitle())
                     .status(document.getStatus())
-                    .score(tuple.getScore())
                     .build()));
         }
 

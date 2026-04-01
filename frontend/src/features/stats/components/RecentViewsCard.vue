@@ -17,11 +17,6 @@
             {{ getStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column label="瀏覽分數" width="140">
-          <template #default="scope">
-            {{ scope.row.score }}
-          </template>
-        </el-table-column>
       </el-table>
     </div>
 
