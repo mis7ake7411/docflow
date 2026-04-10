@@ -1,9 +1,9 @@
 <template>
   <el-form ref="formRef" :model="form" label-position="top" @submit.prevent="handleSubmit">
-    <el-form-item label="帳號">
+    <el-form-item label="使用者名稱">
       <el-input
         v-model="form.username"
-        placeholder="請輸入帳號"
+        placeholder="請輸入使用者名稱"
         @keyup.enter="focusPassword"
       />
     </el-form-item>
@@ -19,7 +19,14 @@
       />
     </el-form-item>
 
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" class="mb-16" />
+    <el-alert
+      v-if="errorMessage"
+      :title="errorMessage"
+      type="error"
+      show-icon
+      :closable="false"
+      class="mb-16"
+    />
 
     <el-button type="primary" native-type="submit" :loading="submitting">登入</el-button>
 
@@ -31,11 +38,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { computed, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { InputInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+
+const SESSION_EXPIRED_REASON_KEY = 'docflow.sessionExpiredReason'
 
 const router = useRouter()
 const route = useRoute()
@@ -51,27 +60,40 @@ const form = reactive({
   password: '',
 })
 
-// 從 URL 查詢參數讀取重定向路徑
-const redirectPath = computed(() => {
-  const redirect = route.query.redirect
-  if (redirect && typeof redirect === 'string') {
-    try {
-      return decodeURIComponent(redirect)
-    } catch {
-      return '/app'
-    }
+function resolveRedirectPath(redirect: unknown) {
+  if (typeof redirect !== 'string' || !redirect) {
+    return '/app'
   }
-  return null
-})
 
-/** 帳號欄按 Enter 時將焦點移至密碼欄 */
+  let decoded = redirect
+
+  try {
+    decoded = decodeURIComponent(redirect)
+  } catch {
+    return '/app'
+  }
+
+  if (!decoded.startsWith('/') || decoded.startsWith('//')) {
+    return '/app'
+  }
+
+  return decoded
+}
+
+const redirectPath = computed(() => resolveRedirectPath(route.query.redirect))
+
+function clearSessionExpiredState() {
+  authStore.sessionExpiredReason = null
+  window.sessionStorage.removeItem(SESSION_EXPIRED_REASON_KEY)
+}
+
 function focusPassword() {
   passwordRef.value?.focus()
 }
 
 async function handleSubmit() {
   if (!form.username || !form.password) {
-    errorMessage.value = '請輸入帳號與密碼'
+    errorMessage.value = '請輸入使用者名稱與密碼'
     return
   }
 
@@ -83,13 +105,12 @@ async function handleSubmit() {
       username: form.username,
       password: form.password,
     })
-    ElMessage.success('登入成功')
 
-    // 若有重定向路徑則使用，否則導到儀表板
-    const targetPath = redirectPath.value || '/app'
-    await router.push(targetPath)
+    clearSessionExpiredState()
+    ElMessage.success('登入成功')
+    await router.push(redirectPath.value)
   } catch {
-    errorMessage.value = '登入失敗，請確認帳號密碼是否正確。'
+    errorMessage.value = '登入失敗，請確認帳號密碼後再試一次'
   } finally {
     submitting.value = false
   }

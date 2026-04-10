@@ -24,6 +24,7 @@ const ACCESS_TOKEN_KEY = 'docflow.accessToken'
 const REFRESH_TOKEN_KEY = 'docflow.refreshToken'
 const USER_KEY = 'docflow.user'
 const BOOTSTRAP_TIMEOUT_MS = 12000
+const DEFAULT_SESSION_EXPIRED_MESSAGE = '登入狀態已過期，請重新登入。'
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   return new Promise<T>((resolve, reject) => {
@@ -48,6 +49,7 @@ function readUserFromStorage(): UserSummary | null {
   if (!raw) {
     return null
   }
+
   try {
     return JSON.parse(raw) as UserSummary
   } catch {
@@ -73,24 +75,28 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = payload.accessToken
       this.refreshToken = payload.refreshToken
       this.user = payload.user
+      this.sessionExpiredReason = null
 
       localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken)
       localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken)
       localStorage.setItem(USER_KEY, JSON.stringify(payload.user))
     },
-    clearAuth() {
+    clearAuth(keepSessionExpiredReason = false) {
       this.accessToken = null
       this.refreshToken = null
       this.user = null
-      this.sessionExpiredReason = null
+
+      if (!keepSessionExpiredReason) {
+        this.sessionExpiredReason = null
+      }
 
       localStorage.removeItem(ACCESS_TOKEN_KEY)
       localStorage.removeItem(REFRESH_TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
     },
-    setSessionExpired(reason: string = '您的登入已過期，請重新登入') {
+    setSessionExpired(reason: string = DEFAULT_SESSION_EXPIRED_MESSAGE) {
       this.sessionExpiredReason = reason
-      this.clearAuth()
+      this.clearAuth(true)
     },
     setUserSummary(user: UserSummary) {
       this.user = user
@@ -125,7 +131,7 @@ export const useAuthStore = defineStore('auth', {
         this.accessToken = tokens.accessToken
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
         return tokens.accessToken
-      } catch (error) {
+      } catch {
         this.clearAuth()
         return null
       }
@@ -137,8 +143,8 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         await withTimeout(this.bootstrapSession(), BOOTSTRAP_TIMEOUT_MS)
-      } catch (error) {
-        this.clearAuth()
+      } catch {
+        this.clearAuth(Boolean(this.sessionExpiredReason))
       } finally {
         this.initialized = true
       }

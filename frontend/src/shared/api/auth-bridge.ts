@@ -20,8 +20,11 @@ export async function refreshAccessTokenFromBridge(): Promise<string | null> {
   return refreshHandler ? refreshHandler() : null
 }
 
-export function logoutFromBridge(reason?: string) {
+export function logoutFromBridge(reason?: string): boolean {
   if (logoutHandler) {
     logoutHandler(reason)
+    return true
   }
+
+  return false
 }
