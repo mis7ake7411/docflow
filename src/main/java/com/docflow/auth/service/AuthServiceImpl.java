@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * {@link AuthService} 的預設實作，負責使用者註冊、登入與權杖生命週期管理。
+ * {@link AuthService} ?勯?瑷浣滐?璨犺铂浣跨敤?呰ɑ?娿€佺櫥?ヨ?娆婃??熷懡?辨?绠＄???
  */
 @Service
 @Slf4j
@@ -40,10 +40,10 @@ public class AuthServiceImpl implements AuthService {
     private final ActivityLogService activityLogService;
 
     /**
-     * 註冊新使用者並建立初始登入權杖。
+     * 瑷诲??颁娇?ㄨ€呬甫寤虹??濆??诲叆娆婃???
      *
-     * @param request 註冊資料
-     * @return 使用者資訊與權杖
+     * @param request 瑷诲?璩囨?
+     * @return 浣跨敤?呰?瑷婅?娆婃?
      */
     @Override
     @Transactional
@@ -76,10 +76,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 驗證帳號密碼並建立新的登入權杖。
+     * 椹楄?甯宠?瀵嗙⒓涓﹀缓绔嬫柊?勭櫥?ユ??栥€?
      *
-     * @param request 登入資料
-     * @return 使用者資訊與權杖
+     * @param request ?诲叆璩囨?
+     * @return 浣跨敤?呰?瑷婅?娆婃?
      */
     @Override
     @Transactional
@@ -105,10 +105,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 驗證 refresh token 後換發新的 access token。
+     * 椹楄? refresh token 寰屾??兼柊??access token??
      *
-     * @param request refresh token 資料
-     * @return 新的權杖資訊
+     * @param request refresh token 璩囨?
+     * @return ?扮?娆婃?璩囪?
      */
     @Override
     @Transactional
@@ -124,22 +124,34 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = refreshToken.getUser();
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            log.warn("Refresh rejected due to inactive user: userId={}, tokenId={}", user.getId(), refreshToken.getId());
+            throw new UnauthorizedException("User is inactive");
+        }
+
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        String newRefreshTokenValue = jwtService.generateRefreshToken(user.getId(), user.getUsername(), user.getRole().name());
+
+        refreshToken.setToken(newRefreshTokenValue);
+        refreshToken.setExpiredAt(LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenExpirationSeconds()));
+        refreshToken.setRevokedFlag(false);
+        refreshTokenRepository.save(refreshToken);
+
         log.info("Access token refreshed successfully: userId={}, tokenId={}", user.getId(), refreshToken.getId());
 
         return AuthTokenResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
+                .refreshToken(newRefreshTokenValue)
                 .tokenType("Bearer")
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .build();
     }
 
     /**
-     * 取得目前登入使用者的個人資訊摘要。
+     * ?栧????诲叆浣跨敤?呯??嬩汉璩囪??樿???
      *
-     * @return 使用者摘要資訊
-     * @throws UnauthorizedException 若使用者不存在
+     * @return 浣跨敤?呮?瑕佽?瑷?
+     * @throws UnauthorizedException ?ヤ娇?ㄨ€呬?瀛樺湪
      */
     @Override
     @Transactional(readOnly = true)
@@ -153,11 +165,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 變更目前登入使用者的密碼。
+     * 璁婃洿???诲叆浣跨敤?呯?瀵嗙⒓??
      *
-     * @param request 包含舊密碼與新密碼的請求
-     * @throws UnauthorizedException 若使用者不存在
-     * @throws BadRequestException 若舊密碼驗證失敗
+     * @param request ?呭惈?婂?纰艰??板?纰肩?璜嬫?
+     * @throws UnauthorizedException ?ヤ娇?ㄨ€呬?瀛樺湪
+     * @throws BadRequestException ?ヨ?瀵嗙⒓椹楄?澶辨?
      */
     @Override
     @Transactional
@@ -181,9 +193,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 註銷 refresh token，並視情況將 access token 加入黑名單。
+     * 瑷婚姺 refresh token锛屼甫瑕栨?娉佸? access token ?犲叆榛戝??€?
      *
-     * @param request 登出資料
+     * @param request ?诲嚭璩囨?
      */
     @Override
     @Transactional
@@ -212,10 +224,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 建立包含使用者摘要與新權杖的登入回應，並持久化 refresh token。
+     * 寤虹??呭惈浣跨敤?呮?瑕佽??版??栫??诲叆?炴?锛屼甫?佷???refresh token??
      *
-     * @param user 使用者實體
-     * @return 登入回應資料
+     * @param user 浣跨敤?呭楂?
+     * @return ?诲叆?炴?璩囨?
      */
     private AuthResponse buildAuthResponse(User user) {
         log.debug("Building auth response: userId={}", user.getId());
@@ -243,10 +255,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 將使用者實體轉換為摘要回應物件。
+     * 灏囦娇?ㄨ€呭楂旇??涚偤?樿??炴??╀欢??
      *
-     * @param user 使用者實體
-     * @return 使用者摘要資訊
+     * @param user 浣跨敤?呭楂?
+     * @return 浣跨敤?呮?瑕佽?瑷?
      */
     private UserSummaryResponse toUserSummary(User user) {
         log.trace("Converting user entity to summary: userId={}, username={}", user.getId(), user.getUsername());
