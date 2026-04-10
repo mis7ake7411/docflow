@@ -1,181 +1,232 @@
-import { test, expect } from '@playwright/test'
+import { expect, test, type Page, type Route } from '@playwright/test'
 
-test.describe('Token 失效導回登入頁', () => {
-  test('當 API 返回 401 時，應清空本地存儲並導回登入頁', async ({ page, context }) => {
-    // 設置測試使用者的登入狀態
-    await context.addCookies([
-      {
-        name: 'test-session',
-        value: 'test-token',
-        url: 'http://localhost:5173',
+const SESSION_EXPIRED_MESSAGE = '登入狀態已過期，請重新登入。'
+const TEST_USER = {
+  id: 1,
+  username: 'admin',
+  email: 'admin@example.com',
+  role: 'ADMIN',
+  status: 'ACTIVE',
+  mustChangePassword: false,
+}
+
+function jsonResponse(data: unknown, status = 200) {
+  return {
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      success: status >= 200 && status < 300,
+      data,
+      message: null,
+    }),
+  }
+}
+
+function fulfillUnauthorized(route: Route) {
+  return route.fulfill(jsonResponse(null, 401))
+}
+
+async function fulfillOk(route: Route, data: unknown) {
+  await route.fulfill(jsonResponse(data))
+}
+
+async function seedAuthenticatedSession(
+  page: Page,
+  tokens: { accessToken: string; refreshToken: string },
+) {
+  await page.addInitScript(
+    ({ user, accessToken, refreshToken }) => {
+      window.localStorage.setItem('docflow.accessToken', accessToken)
+      window.localStorage.setItem('docflow.refreshToken', refreshToken)
+      window.localStorage.setItem('docflow.user', JSON.stringify(user))
+    },
+    {
+      user: TEST_USER,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    },
+  )
+}
+
+async function mockCommonAppApis(page: Page) {
+  await page.route('**/api/documents**', async (route) => {
+    await fulfillOk(route, {
+      items: [],
+      page: 0,
+      size: 10,
+      totalElements: 0,
+      totalPages: 0,
+    })
+  })
+  await page.route('**/api/folders/tree', async (route) => {
+    await fulfillOk(route, [])
+  })
+  await page.route('**/api/stats/hot-documents', async (route) => {
+    await fulfillOk(route, [])
+  })
+  await page.route('**/api/users/me/recent-views', async (route) => {
+    await fulfillOk(route, [])
+  })
+  await page.route('**/api/activities**', async (route) => {
+    await fulfillOk(route, {
+      items: [],
+      page: 0,
+      size: 10,
+      totalElements: 0,
+      totalPages: 0,
+    })
+  })
+  await page.route('**/api/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 200,
+      body: '',
+    })
+  })
+}
+
+async function mockLoginSuccess(page: Page) {
+  await page.route('**/api/auth/login', async (route) => {
+    const payload = route.request().postDataJSON() as { username: string; password: string }
+    expect(payload).toMatchObject({
+      username: 'admin',
+      password: 'admin123',
+    })
+
+    await fulfillOk(route, {
+      user: TEST_USER,
+      tokens: {
+        accessToken: 'fresh-access-token',
+        refreshToken: 'fresh-refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: 3600,
       },
-    ])
+    })
+  })
+}
 
-    // 設置本地存儲的 token
-    await page.goto('http://localhost:5173/login')
-    await page.evaluate(() => {
-      localStorage.setItem('docflow.accessToken', 'expired-token')
-      localStorage.setItem('docflow.refreshToken', 'invalid-refresh-token')
-      localStorage.setItem(
-        'docflow.user',
-        JSON.stringify({
-          id: 1,
-          username: 'testuser',
-          email: 'test@example.com',
-          role: 'USER',
-          status: 'ACTIVE',
-          mustChangePassword: false,
-        }),
-      )
+test.describe('token expiry flow', () => {
+  test('refresh 成功後會留在應用頁面並更新 access token', async ({ page }) => {
+    let meRequestCount = 0
+    let refreshRequestCount = 0
+
+    await mockCommonAppApis(page)
+    await seedAuthenticatedSession(page, {
+      accessToken: 'expired-access-token',
+      refreshToken: 'valid-refresh-token',
     })
 
-    // 導到儀表板（需要認證）
-    await page.goto('http://localhost:5173/app')
-
-    // 等待登入頁面加載（因為 token 失效，應自動導回）
-    await page.waitForURL('**/login')
-
-    // 驗證本地存儲已清空
-    const accessToken = await page.evaluate(() => localStorage.getItem('docflow.accessToken'))
-    const user = await page.evaluate(() => localStorage.getItem('docflow.user'))
-
-    expect(accessToken).toBeNull()
-    expect(user).toBeNull()
-  })
-
-  test('當刷新 token 失敗時，應顯示過期提示訊息', async ({ page }) => {
-    // 設置本地存儲的 token
-    await page.goto('http://localhost:5173/login')
-    await page.evaluate(() => {
-      localStorage.setItem('docflow.accessToken', 'expired-token')
-      localStorage.setItem('docflow.refreshToken', 'invalid-refresh-token')
-      localStorage.setItem(
-        'docflow.user',
-        JSON.stringify({
-          id: 1,
-          username: 'testuser',
-          email: 'test@example.com',
-          role: 'USER',
-          status: 'ACTIVE',
-          mustChangePassword: false,
-        }),
-      )
+    await page.route('**/api/auth/refresh', async (route) => {
+      refreshRequestCount += 1
+      await fulfillOk(route, {
+        accessToken: 'refreshed-access-token',
+        refreshToken: 'valid-refresh-token',
+        tokenType: 'Bearer',
+        expiresIn: 3600,
+      })
     })
 
-    // 導到儀表板
-    await page.goto('http://localhost:5173/app')
+    await page.route('**/api/auth/me', async (route) => {
+      meRequestCount += 1
+      const authorization = route.request().headers().authorization
 
-    // 等待重定向到登入頁
-    await page.waitForURL(/.*\/login.*/)
-
-    // 檢查是否顯示過期提示（可能在 URL 參數或 alert 中）
-    const url = page.url()
-    const pageContent = await page.content()
-
-    // 應該要麼重定向帶有 reason 參數，要麼頁面上有過期提示
-    const hasReasonParam = url.includes('reason=')
-    const hasSessionExpiredText = pageContent.includes('已過期') || pageContent.includes('session')
-
-    expect(hasReasonParam || hasSessionExpiredText).toBeTruthy()
-  })
-
-  test('登入成功後應導向原始路徑（如果提供了 redirect 參數）', async ({ page }) => {
-    // 模擬帶有 redirect 參數的登入頁
-    await page.goto('http://localhost:5173/login?redirect=%2Fapp%2Ffiles')
-
-    // 填寫並提交登入表單
-    await page.fill('input[placeholder="請輸入帳號"]', 'admin')
-    await page.fill('input[placeholder="請輸入密碼"]', 'admin123')
-    await page.click('button[type="submit"]')
-
-    // 等待登入成功後的頁面加載
-    // 應導向 /app/files 而不是 /app
-    await page.waitForURL(/.*\/app\/files.*/, { timeout: 10000 }).catch(() => {
-      // 如果直接導向成功，URL 應包含 /app/files
-    })
-
-    const url = page.url()
-    // 驗證最終 URL 包含原始路徑（或至少登入成功了）
-    expect(url).toMatch(/\/(app|login)/)
-  })
-
-  test('登出後訪問受保護的頁面應導回登入頁', async ({ page }) => {
-    // 完整登入流程
-    await page.goto('http://localhost:5173/login')
-    await page.fill('input[placeholder="請輸入帳號"]', 'admin')
-    await page.fill('input[placeholder="請輸入密碼"]', 'admin123')
-    await page.click('button[type="submit"]')
-
-    // 等待成功登入（導到儀表板）
-    await page.waitForURL('**/app', { timeout: 10000 }).catch(() => null)
-
-    // 執行登出（如果有登出按鈕）
-    const logoutButton = page.locator('button:has-text("登出")').first()
-    if (await logoutButton.isVisible()) {
-      await logoutButton.click()
-      // 等待導回登入頁
-      await page.waitForURL('**/login', { timeout: 5000 })
-    }
-
-    // 驗證用戶已在登入頁
-    expect(page.url()).toContain('/login')
-  })
-
-  test('本地存儲中 token 為 null 時應直接導回登入頁', async ({ page }) => {
-    // 清除所有本地存儲
-    await page.goto('http://localhost:5173/login')
-    await page.evaluate(() => {
-      localStorage.clear()
-    })
-
-    // 嘗試訪問受保護的頁面
-    await page.goto('http://localhost:5173/app')
-
-    // 應自動重定向到登入頁
-    await page.waitForURL('**/login')
-
-    expect(page.url()).toContain('/login')
-  })
-
-  test('顯示中文過期提示訊息', async ({ page }) => {
-    // 設置過期的 token
-    await page.goto('http://localhost:5173/login')
-    await page.evaluate(() => {
-      localStorage.setItem('docflow.accessToken', 'expired-token')
-      localStorage.setItem('docflow.refreshToken', 'invalid-refresh-token')
-      localStorage.setItem(
-        'docflow.user',
-        JSON.stringify({
-          id: 1,
-          username: 'testuser',
-          email: 'test@example.com',
-          role: 'USER',
-          status: 'ACTIVE',
-          mustChangePassword: false,
-        }),
-      )
-    })
-
-    // 模擬 API 呼叫失敗
-    await page.goto('http://localhost:5173/app')
-
-    // 等待重定向
-    await page.waitForURL(/.*\/login.*/)
-
-    // 尋找中文的過期提示
-    const alerts = await page.locator('.el-alert').all()
-    let foundAlert = false
-
-    for (const alert of alerts) {
-      const text = await alert.textContent()
-      if (text && (text.includes('已過期') || text.includes('登入') || text.includes('重新'))) {
-        foundAlert = true
-        break
+      if (meRequestCount === 1) {
+        expect(authorization).toBe('Bearer expired-access-token')
+        await fulfillUnauthorized(route)
+        return
       }
-    }
 
-    // 注意：在測試環境中，alert 可能不會出現，但至少應確保登入頁已加載
-    expect(page.url()).toContain('/login')
+      expect(authorization).toBe('Bearer refreshed-access-token')
+      await fulfillOk(route, TEST_USER)
+    })
+
+    await page.goto('/app')
+
+    await expect(page).toHaveURL(/\/app$/)
+    await expect.poll(() => meRequestCount).toBe(2)
+    expect(refreshRequestCount).toBe(1)
+
+    const accessToken = await page.evaluate(() => window.localStorage.getItem('docflow.accessToken'))
+    const refreshToken = await page.evaluate(() => window.localStorage.getItem('docflow.refreshToken'))
+
+    expect(accessToken).toBe('refreshed-access-token')
+    expect(refreshToken).toBe('valid-refresh-token')
+  })
+
+  test('refresh 失敗時會導回登入頁並顯示過期訊息', async ({ page }) => {
+    await mockCommonAppApis(page)
+    await seedAuthenticatedSession(page, {
+      accessToken: 'expired-access-token',
+      refreshToken: 'invalid-refresh-token',
+    })
+
+    await page.route('**/api/auth/me', fulfillUnauthorized)
+    await page.route('**/api/auth/refresh', fulfillUnauthorized)
+
+    await page.goto('/app')
+
+    await expect(page).toHaveURL(/\/login\?redirect=.+$/)
+    await expect
+      .poll(() => page.evaluate(() => window.location.pathname))
+      .toBe('/login')
+    await expect
+      .poll(() => page.evaluate(() => new URLSearchParams(window.location.search).get('redirect')))
+      .toBe('/app')
+    await expect(page.getByRole('alert')).toContainText(SESSION_EXPIRED_MESSAGE)
+
+    await expect
+      .poll(async () => {
+        try {
+          return await page.evaluate(() => ({
+            accessToken: window.localStorage.getItem('docflow.accessToken'),
+            refreshToken: window.localStorage.getItem('docflow.refreshToken'),
+            user: window.localStorage.getItem('docflow.user'),
+          }))
+        } catch {
+          return null
+        }
+      })
+      .toEqual({
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+      })
+  })
+
+  test('受保護頁面導回登入後重新登入會回到原目標頁', async ({ page }) => {
+    await mockCommonAppApis(page)
+    await mockLoginSuccess(page)
+
+    await page.goto('/app/files')
+
+    await expect(page).toHaveURL(/\/login\?redirect=.+$/)
+    await expect
+      .poll(() => page.evaluate(() => new URLSearchParams(window.location.search).get('redirect')))
+      .toBe('/app/files')
+
+    await page.getByRole('textbox', { name: '使用者名稱' }).fill('admin')
+    await page.getByLabel('密碼').fill('admin123')
+    await page.getByRole('button', { name: '登入' }).click()
+
+    await expect(page).toHaveURL(/\/app\/files$/)
+  })
+
+  test('手動登出後回到登入頁但不顯示過期訊息', async ({ page }) => {
+    await mockCommonAppApis(page)
+    await seedAuthenticatedSession(page, {
+      accessToken: 'valid-access-token',
+      refreshToken: 'valid-refresh-token',
+    })
+
+    await page.route('**/api/auth/me', async (route) => {
+      await fulfillOk(route, TEST_USER)
+    })
+
+    await page.goto('/app')
+    await expect(page).toHaveURL(/\/app$/)
+
+    await page.getByRole('button', { name: '登出' }).click()
+
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByText(SESSION_EXPIRED_MESSAGE)).toHaveCount(0)
   })
 })
-
