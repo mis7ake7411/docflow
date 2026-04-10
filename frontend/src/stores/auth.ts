@@ -24,7 +24,7 @@ const ACCESS_TOKEN_KEY = 'docflow.accessToken'
 const REFRESH_TOKEN_KEY = 'docflow.refreshToken'
 const USER_KEY = 'docflow.user'
 const BOOTSTRAP_TIMEOUT_MS = 12000
-const DEFAULT_SESSION_EXPIRED_MESSAGE = '?诲叆?€?嬪凡?庢?锛岃??嶆柊?诲叆??
+const DEFAULT_SESSION_EXPIRED_MESSAGE = '登入狀態已過期，請重新登入。'
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   return new Promise<T>((resolve, reject) => {

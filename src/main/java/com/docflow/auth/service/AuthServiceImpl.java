@@ -40,10 +40,10 @@ public class AuthServiceImpl implements AuthService {
     private final ActivityLogService activityLogService;
 
     /**
-     * 瑷诲??颁娇?ㄨ€呬甫寤虹??濆??诲叆娆婃???
+     * 註冊新使用者並建立初始登入權杖。
      *
-     * @param request 瑷诲?璩囨?
-     * @return 浣跨敤?呰?瑷婅?娆婃?
+     * @param request 註冊資料
+     * @return 使用者資訊與權杖
      */
     @Override
     @Transactional
@@ -76,10 +76,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 椹楄?甯宠?瀵嗙⒓涓﹀缓绔嬫柊?勭櫥?ユ??栥€?
+     * 驗證帳號密碼並建立新的登入權杖。
      *
-     * @param request ?诲叆璩囨?
-     * @return 浣跨敤?呰?瑷婅?娆婃?
+     * @param request 登入資料
+     * @return 使用者資訊與權杖
      */
     @Override
     @Transactional
@@ -105,10 +105,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 椹楄? refresh token 寰屾??兼柊??access token??
+     * 驗證 refresh token 後換發新的 access token。
      *
-     * @param request refresh token 璩囨?
-     * @return ?扮?娆婃?璩囪?
+     * @param request refresh token 資料
+     * @return 新的權杖資訊
      */
     @Override
     @Transactional
@@ -148,10 +148,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * ?栧????诲叆浣跨敤?呯??嬩汉璩囪??樿???
+     * 取得目前登入使用者的個人資訊摘要。
      *
-     * @return 浣跨敤?呮?瑕佽?瑷?
-     * @throws UnauthorizedException ?ヤ娇?ㄨ€呬?瀛樺湪
+     * @return 使用者摘要資訊
+     * @throws UnauthorizedException 若使用者不存在
      */
     @Override
     @Transactional(readOnly = true)
@@ -164,13 +164,13 @@ public class AuthServiceImpl implements AuthService {
         return toUserSummary(user);
     }
 
-    /**
-     * 璁婃洿???诲叆浣跨敤?呯?瀵嗙⒓??
-     *
-     * @param request ?呭惈?婂?纰艰??板?纰肩?璜嬫?
-     * @throws UnauthorizedException ?ヤ娇?ㄨ€呬?瀛樺湪
-     * @throws BadRequestException ?ヨ?瀵嗙⒓椹楄?澶辨?
-     */
+  /**
+   * 變更目前登入使用者的密碼。
+   *
+   * @param request 包含舊密碼與新密碼的請求
+   * @throws UnauthorizedException 若使用者不存在
+   * @throws BadRequestException 若舊密碼驗證失敗
+   */
     @Override
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
@@ -193,9 +193,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 瑷婚姺 refresh token锛屼甫瑕栨?娉佸? access token ?犲叆榛戝??€?
+     * 註銷 refresh token，並視情況將 access token 加入黑名單。
      *
-     * @param request ?诲嚭璩囨?
+     * @param request 登出資料
      */
     @Override
     @Transactional
@@ -224,10 +224,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 寤虹??呭惈浣跨敤?呮?瑕佽??版??栫??诲叆?炴?锛屼甫?佷???refresh token??
+     * 建立包含使用者摘要與新權杖的登入回應，並持久化 refresh token。
      *
-     * @param user 浣跨敤?呭楂?
-     * @return ?诲叆?炴?璩囨?
+     * @param user 使用者實體
+     * @return 登入回應資料
      */
     private AuthResponse buildAuthResponse(User user) {
         log.debug("Building auth response: userId={}", user.getId());
@@ -255,10 +255,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 灏囦娇?ㄨ€呭楂旇??涚偤?樿??炴??╀欢??
+     * 將使用者實體轉換為摘要回應物件。
      *
-     * @param user 浣跨敤?呭楂?
-     * @return 浣跨敤?呮?瑕佽?瑷?
+     * @param user 使用者實體
+     * @return 使用者摘要資訊
      */
     private UserSummaryResponse toUserSummary(User user) {
         log.trace("Converting user entity to summary: userId={}, username={}", user.getId(), user.getUsername());
