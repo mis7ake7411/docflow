@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-const SESSION_EXPIRED_MESSAGE = '登入狀態已過期，請重新登入。'
+const SESSION_EXPIRED_MESSAGE = '?»å…¥?€?‹å·²?Žæ?ï¼Œè??æ–°?»å…¥??
 const TEST_USER = {
   id: 1,
   username: 'admin',
@@ -105,7 +105,7 @@ async function mockLoginSuccess(page: Page) {
 }
 
 test.describe('token expiry flow', () => {
-  test('refresh 成功後會留在應用頁面並更新 access token', async ({ page }) => {
+  test('refresh ?å?å¾Œæ??™åœ¨?‰ç”¨?é¢ä¸¦æ›´??access token', async ({ page }) => {
     let meRequestCount = 0
     let refreshRequestCount = 0
 
@@ -119,7 +119,7 @@ test.describe('token expiry flow', () => {
       refreshRequestCount += 1
       await fulfillOk(route, {
         accessToken: 'refreshed-access-token',
-        refreshToken: 'valid-refresh-token',
+        refreshToken: 'rotated-refresh-token',
         tokenType: 'Bearer',
         expiresIn: 3600,
       })
@@ -149,10 +149,10 @@ test.describe('token expiry flow', () => {
     const refreshToken = await page.evaluate(() => window.localStorage.getItem('docflow.refreshToken'))
 
     expect(accessToken).toBe('refreshed-access-token')
-    expect(refreshToken).toBe('valid-refresh-token')
+    expect(refreshToken).toBe('rotated-refresh-token')
   })
 
-  test('refresh 失敗時會導回登入頁並顯示過期訊息', async ({ page }) => {
+  test('refresh å¤±æ??‚æ?å°Žå??»å…¥?ä¸¦é¡¯ç¤º?Žæ?è¨Šæ¯', async ({ page }) => {
     await mockCommonAppApis(page)
     await seedAuthenticatedSession(page, {
       accessToken: 'expired-access-token',
@@ -192,7 +192,7 @@ test.describe('token expiry flow', () => {
       })
   })
 
-  test('受保護頁面導回登入後重新登入會回到原目標頁', async ({ page }) => {
+  test('?—ä?è­·é??¢å??žç™»?¥å??æ–°?»å…¥?ƒå??°å??®æ???, async ({ page }) => {
     await mockCommonAppApis(page)
     await mockLoginSuccess(page)
 
@@ -203,14 +203,14 @@ test.describe('token expiry flow', () => {
       .poll(() => page.evaluate(() => new URLSearchParams(window.location.search).get('redirect')))
       .toBe('/app/files')
 
-    await page.getByRole('textbox', { name: '使用者名稱' }).fill('admin')
-    await page.getByLabel('密碼').fill('admin123')
-    await page.getByRole('button', { name: '登入' }).click()
+    await page.getByRole('textbox', { name: 'ä½¿ç”¨?…å?ç¨? }).fill('admin')
+    await page.getByLabel('å¯†ç¢¼').fill('admin123')
+    await page.getByRole('button', { name: '?»å…¥' }).click()
 
     await expect(page).toHaveURL(/\/app\/files$/)
   })
 
-  test('手動登出後回到登入頁但不顯示過期訊息', async ({ page }) => {
+  test('?‹å??»å‡ºå¾Œå??°ç™»?¥é?ä½†ä?é¡¯ç¤º?Žæ?è¨Šæ¯', async ({ page }) => {
     await mockCommonAppApis(page)
     await seedAuthenticatedSession(page, {
       accessToken: 'valid-access-token',
@@ -224,7 +224,7 @@ test.describe('token expiry flow', () => {
     await page.goto('/app')
     await expect(page).toHaveURL(/\/app$/)
 
-    await page.getByRole('button', { name: '登出' }).click()
+    await page.getByRole('button', { name: '?»å‡º' }).click()
 
     await expect(page).toHaveURL(/\/login$/)
     await expect(page.getByText(SESSION_EXPIRED_MESSAGE)).toHaveCount(0)

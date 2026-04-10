@@ -99,6 +99,29 @@ class AuthControllerTest {
     }
 
     @Test
+    void refreshShouldReturnRotatedTokens() throws Exception {
+        RefreshRequest request = new RefreshRequest();
+        request.setRefreshToken("old-refresh-token");
+
+        AuthTokenResponse response = AuthTokenResponse.builder()
+                .accessToken("new-access-token")
+                .refreshToken("new-refresh-token")
+                .tokenType("Bearer")
+                .expiresIn(3600)
+                .build();
+
+        Mockito.when(authService.refresh(Mockito.any(RefreshRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
+                .andExpect(jsonPath("$.data.refreshToken").value("new-refresh-token"));
+    }
+
+    @Test
     @WithMockUser
     void logoutShouldReturnSuccessResponse() throws Exception {
         LogoutRequest request = new LogoutRequest();
